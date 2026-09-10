@@ -60,3 +60,7 @@ singularity_cache/
 .idea/
 *.swp
 .DS_Store
+
+# ...but curated manifests under assets/ ARE tracked
+!assets/*.tsv
+!assets/*.csv

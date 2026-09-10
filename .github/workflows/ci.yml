@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python helpers parse
+        run: |
+          for f in bin/*.py tests/*.py; do
+            echo "checking $f"
+            python3 -m py_compile "$f"
+          done
+
+      - name: Check shell scripts parse
+        run: |
+          for f in bin/*.sh bin/*.sbatch; do
+            echo "checking $f"
+            bash -n "$f"
+          done
+
+      - name: Install Nextflow
+        run: |
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+
+      - name: Check the workflow compiles
+        run: nextflow run . --help
+
+      - name: Check parameter validation rejects an empty invocation
+        run: |
+          if nextflow run . 2>&1 | grep -q "Parameter validation failed"; then
+            echo "validation works"
+          else
+            echo "expected validation to fail with no parameters"; exit 1
+          fi
+
+      - name: Generate test data
+        run: python3 tests/make_test_data.py -o tests/data --pairs 2000 --length 40000
+
+      - name: Run the test profile
+        run: |
+          nextflow run . -profile test,docker \
+            --input tests/test_samplesheet.csv \
+            --fasta tests/data/test_ref.fna \
+            --outdir test_results \
+            -c .github/ci.config
+
+      - name: Check expected outputs exist
+        run: |
+          test -s test_results/variants/*.filtered.vcf.gz || { echo "no filtered VCF"; exit 1; }
+          ls test_results/benchmarks/trace-*.txt >/dev/null || { echo "no trace"; exit 1; }
+          echo "outputs present"
+
+      - name: Summarise the benchmark
+        run: bin/summarise_benchmark.py test_results/benchmarks/trace-*.txt
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: test_results/benchmarks/

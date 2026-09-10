@@ -1,0 +1,5 @@
+sample,run,fastq_1,fastq_2
+SAMPLE_A,run1,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_A_1.fastq.gz,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_A_2.fastq.gz
+SAMPLE_A,run2,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run2_SAMPLE_A_1.fastq.gz,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run2_SAMPLE_A_2.fastq.gz
+SAMPLE_B,run1,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_B_1.fastq.gz,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_B_2.fastq.gz
+SAMPLE_C,run1,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_C_1.fastq.gz,/mmfs1/data/group/sae001/ahockey/Cr_align/tests/data/run1_SAMPLE_C_2.fastq.gz

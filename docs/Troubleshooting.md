@@ -1,0 +1,145 @@
+# Troubleshooting
+
+## Never run on the login node
+
+Every compute step must go through SLURM.
+
+```bash
+sbatch bin/run_pipeline.sbatch -profile uwa,apptainer ...
+sbatch bin/fetch_reads.sbatch /group/peg/cicer/cret/reads 8
+```
+
+`bin/run_pipeline.sbatch` runs the Nextflow *driver* in a small allocation;
+the driver submits each task as its own job. The `test`, `uwa` and `setonix`
+profiles all set `executor = 'slurm'`, so a plain `nextflow run` with one of
+those will still submit tasks correctly — but the driver itself would be on
+the login node, so use the sbatch wrapper.
+
+To check nothing of yours is running locally:
+
+```bash
+ps -u $USER -o pcpu=,args= --sort=-pcpu | head
+```
+
+## Downloads
+
+**Two fetchers at once corrupt files.** `fetch_reads.sh` takes an `flock` and
+refuses to start alongside another, but a badly-killed run leaves orphaned
+`curl` children that keep writing. Always stop with:
+
+```bash
+bin/stop_fetch.sh /group/peg/cicer/cret/reads
+```
+
+Never `kill` the script directly — it runs under `setsid` as its own process
+group precisely so `stop_fetch.sh` can signal the whole tree. Killing only the
+parent leaves the `xargs` layer alive and respawning.
+
+**Verify what you have:**
+
+```bash
+bin/fetch_reads.sh -o /group/peg/cicer/cret/reads -c
+```
+
+Reports `OK-CACHED`, `BAD-MD5` or `MISSING` per file. Anything failing MD5 is
+deleted and refetched automatically on the next real run — truncated files are
+expected after an interruption and are not a cause for concern.
+
+**Downloads are slow.** Expect 12–15 hours for 0.71 TB. More parallelism does
+*not* help: measured throughput at `-j 16` was about half that at `-j 8`,
+because ENA throttles per-connection above roughly 8. Stay at 6–8.
+
+## `A process input channel evaluates to null`
+
+A `val` input received `null`. Nextflow rejects this. Optional parameters must
+be given a concrete default before being passed to a process — for example
+`chr_regex ?: '.'`. If you add a parameter that is `null` by default and pass
+it to a process as `val`, normalise it in the subworkflow first.
+
+## `Failed to pull singularity image` / `manifest unknown`
+
+The image name resolved to Docker Hub but lives on quay.io. All bioconda
+containers need the explicit registry:
+
+```groovy
+container "quay.io/biocontainers/samtools:1.21--h50ea8bc_0"
+```
+
+Bare `biocontainers/...` resolves to `docker.io/biocontainers/...`, which for
+most of these tags does not exist. `broadinstitute/gatk` and `python` are
+genuine Docker Hub images and correctly have no prefix.
+
+If a pull times out, the GATK image is large — raise
+`apptainer.pullTimeout`, or pre-pull once into the shared cache:
+
+```bash
+export NXF_APPTAINER_CACHEDIR=/group/sae001/ahockey/apptainer_cache
+apptainer pull docker://broadinstitute/gatk:4.6.1.0
+```
+
+## Out-of-memory kills
+
+`conf/base.config` retries exit codes 104, 134, 137, 139, 140, 143 and 247 up
+to three times, scaling memory with `task.attempt`. A task that fails all
+three attempts is genuinely under-provisioned — do not simply raise
+`maxRetries`. Find the process in the trace:
+
+```bash
+bin/summarise_benchmark.py results/benchmarks/trace-*.txt --include-failed
+```
+
+and raise that process's `withName` block. `GENOMICSDBIMPORT` and
+`GENOTYPEGVCFS` are the usual culprits: their memory grows with cohort size,
+so a limit that held at 24 samples may not hold at 161.
+
+## Too many tasks
+
+An assembly with many unplaced scaffolds scatters into one task per sequence.
+The *C. echinospermum* assembly has 17,304 sequences, which at 161 samples
+would be ~2.8 million `HaplotypeCaller` tasks. Restrict the scatter:
+
+```bash
+--chr_regex '^cicec\.S2Drd065\.gnm1\.chr' --intervals_min_length 100000
+```
+
+`BUILD_INTERVALS` fails loudly if the regex matches nothing, rather than
+silently producing an empty cohort.
+
+## Jobs stuck `PENDING (Priority)`
+
+The cluster is busy, not broken. Check with:
+
+```bash
+sinfo -p work -o "%.10P %.6D %.20C"
+```
+
+`CPUS(A/I/O/T)` shows allocated / idle / other / total. Nextflow's own
+`queueSize` and `submitRateLimit` in the profile keep it from flooding the
+scheduler; leave them alone unless you have been asked to.
+
+## `-resume` did not reuse anything
+
+Nextflow caches on input *content*, not filenames. Common causes:
+
+- The work directory changed. Keep `-w` stable across runs.
+- A file was re-downloaded and now has a different timestamp *and* content.
+- A parameter feeding into a task's script changed — including one you
+  consider cosmetic, since the script text is part of the hash.
+
+`SRA_FETCH` uses `storeDir`, so reads specifically are never re-downloaded
+even when the task cache misses.
+
+## Sample names look wrong in the VCF
+
+Sample identity comes from the `SM` read-group tag written by `BWA_MEM`, which
+comes from the `sample` column of the samplesheet or the `Sample Name` column
+of the SRA run table. There is no renaming step to blame. If names are wrong,
+fix the input and re-run alignment — check `results/metadata/runs.tsv` to see
+what was actually resolved.
+
+## Runs missing from the manifest
+
+`SRA_RESOLVE` reports skipped runs by reason: `not_in_ena`, `not_paired`, or
+`organism`. Check the job log. Runs that are single-end, or that ENA lists
+without a clean R1/R2 pair, are skipped by design — this pipeline is
+paired-end only.

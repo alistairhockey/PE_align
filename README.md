@@ -111,6 +111,36 @@ docs/                       wiki source
 | `bin/summarise_benchmark.py` | Trace → per-process resource table and right-sizing |
 | `bin/estimate_su.py` | Resource table → Setonix service-unit projection |
 
+## Publishing this repository
+
+The repository is complete locally with full history. To put it on GitHub:
+
+```bash
+# 1. Create an EMPTY repository on github.com (no README, no .gitignore)
+# 2. Then, from this directory:
+git remote add origin git@github.com:USER/Cr_align.git
+git branch -M main
+git push -u origin main
+```
+
+The wiki lives in `docs/` and is published separately, because GitHub wikis
+are their own git repository:
+
+```bash
+# Create the first wiki page on github.com (repository -> Wiki), then:
+bin/publish_wiki.sh git@github.com:USER/Cr_align.wiki.git
+```
+
+Before pushing, confirm nothing sensitive is staged:
+
+```bash
+git log --oneline
+git ls-files | grep -iE 'secret|credential|\.key|\.pem' || echo "clean"
+```
+
+`conf/secrets.config` is git-ignored; only `conf/secrets.config.template` is
+tracked.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).

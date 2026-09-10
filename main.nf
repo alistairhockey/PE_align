@@ -1,10 +1,14 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-    Cr_align
+    PE_align
 ========================================================================================
-    Alignment and joint variant calling for Cicer reticulatum whole-genome
-    short-read data, instrumented for resource benchmarking.
+    Paired-end short-read alignment and joint variant calling, instrumented
+    for resource benchmarking.
+
+    Developed for a 238-run Cicer reticulatum WGS cohort against the
+    PBA_HatTrick chickpea assembly, but nothing in it is specific to that
+    cohort or that reference.
 
     Two inputs and go:
         --sra_metadata   an NCBI SRA run table (SraRunTable.txt)
@@ -13,7 +17,7 @@
     Everything else -- FASTQ downloads, .fai, .dict, bwa index, scatter
     intervals, the samplesheet -- is derived.
 
-    https://github.com/<user>/Cr_align
+    https://github.com/alistairhockey/PE_align
 ----------------------------------------------------------------------------------------
 */
 
@@ -36,7 +40,7 @@ include { MULTIQC        } from './modules/local/multiqc'
 def helpMessage() {
     log.info """
     ==========================================================================
-     Cr_align  v${workflow.manifest.version}
+     PE_align  v${workflow.manifest.version}
     ==========================================================================
 
     Typical use:
@@ -135,7 +139,7 @@ def subset = params.containsKey('bench_subset') ? params.bench_subset : null
 
 log.info """
 ==========================================================================
- Cr_align v${workflow.manifest.version}
+ PE_align v${workflow.manifest.version}
 ==========================================================================
  input        : ${params.sra_metadata ?: params.input}
  reference    : ${params.fasta}
@@ -182,7 +186,8 @@ workflow {
         params.fasta_dict,
         params.bwa_index,
         params.chr_regex,
-        params.intervals_min_length
+        params.intervals_min_length,
+        params.skip_fasta_normalisation
     )
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
@@ -247,7 +252,7 @@ workflow.onComplete {
     def status = workflow.success ? 'COMPLETED' : 'FAILED'
     log.info """
 ==========================================================================
- Cr_align ${status}
+ PE_align ${status}
 --------------------------------------------------------------------------
  duration     : ${workflow.duration}
  CPU hours    : ${workflow.stats?.computeTimeFmt ?: 'n/a'}

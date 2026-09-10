@@ -10,6 +10,7 @@
  * missing is built and published for reuse.
  */
 
+include { NORMALISE_FASTA                } from '../../modules/local/normalise_fasta'
 include { SAMTOOLS_FAIDX                 } from '../../modules/local/samtools_faidx'
 include { GATK4_CREATESEQUENCEDICTIONARY } from '../../modules/local/gatk4_createsequencedictionary'
 include { BWA_INDEX                      } from '../../modules/local/bwa_index'
@@ -24,10 +25,31 @@ workflow PREPARE_GENOME {
     bwa_in         // path or null
     chr_regex      // val
     min_length     // val
+    skip_normalise // bool
 
     main:
     ch_versions = Channel.empty()
-    ch_fasta    = Channel.value(file(fasta, checkIfExists: true))
+
+    // Normalise line endings and header whitespace before anything indexes
+    // the assembly, so every derived artefact agrees on sequence names and
+    // coordinates. A clean FASTA passes through untouched.
+    //
+    // Normalising changes byte offsets, which invalidates any .fai built
+    // against the original. So supplying a prebuilt artefact is treated as an
+    // assertion that the FASTA is already clean, and normalisation is skipped
+    // rather than silently producing a .fai that disagrees with the sequence.
+    def has_prebuilt = fai_in || dict_in || bwa_in
+    if (skip_normalise || has_prebuilt) {
+        if (has_prebuilt && !skip_normalise)
+            log.info "PREPARE_GENOME: prebuilt reference artefacts supplied; " +
+                     "skipping FASTA normalisation. Ensure the FASTA has LF line " +
+                     "endings, or drop --fasta_fai/--fasta_dict/--bwa_index to have " +
+                     "the pipeline normalise and rebuild them."
+        ch_fasta = Channel.value(file(fasta, checkIfExists: true))
+    } else {
+        NORMALISE_FASTA(Channel.value(file(fasta, checkIfExists: true)))
+        ch_fasta = NORMALISE_FASTA.out.fasta
+    }
 
     // ---- .fai ----
     if (fai_in) {

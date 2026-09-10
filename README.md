@@ -1,7 +1,11 @@
-# Cr_align
+# PE_align
 
-Alignment and joint variant calling for *Cicer reticulatum* whole-genome
-short-read data, instrumented for resource benchmarking.
+Paired-end short-read alignment and joint variant calling, instrumented for
+resource benchmarking.
+
+Built for a 238-run *Cicer reticulatum* WGS cohort aligned to the
+**PBA_HatTrick** chickpea assembly — but nothing in it is specific to that
+cohort or that reference. Point `--fasta` somewhere else and it runs.
 
 Give it an NCBI SRA run table and a genome assembly. It resolves the runs
 against ENA, downloads the reads, builds every reference index it needs,
@@ -11,7 +15,7 @@ per-task record of CPU and memory use.
 ```bash
 sbatch bin/run_pipeline.sbatch -profile uwa,apptainer \
     --sra_metadata assets/cret_metadata.tsv \
-    --fasta /path/to/assembly.fna \
+    --fasta /group/peg/cicer/chickpea/genome/PBA_HatTrick/PBA_HatTrick.fasta \
     --reads_dir /group/peg/cicer/cret/reads \
     --outdir results
 ```
@@ -118,7 +122,7 @@ The repository is complete locally with full history. To put it on GitHub:
 ```bash
 # 1. Create an EMPTY repository on github.com (no README, no .gitignore)
 # 2. Then, from this directory:
-git remote add origin git@github.com:USER/Cr_align.git
+git remote add origin git@github.com:alistairhockey/PE_align.git
 git branch -M main
 git push -u origin main
 ```
@@ -128,7 +132,7 @@ are their own git repository:
 
 ```bash
 # Create the first wiki page on github.com (repository -> Wiki), then:
-bin/publish_wiki.sh git@github.com:USER/Cr_align.wiki.git
+bin/publish_wiki.sh git@github.com:alistairhockey/PE_align.wiki.git
 ```
 
 Before pushing, confirm nothing sensitive is staged:

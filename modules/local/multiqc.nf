@@ -16,7 +16,7 @@ process MULTIQC {
 
     script:
     """
-    multiqc --force --title "Cr_align cohort QC" .
+    multiqc --force --title "PE_align cohort QC" .
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

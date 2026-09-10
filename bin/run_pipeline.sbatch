@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=Cr_align
+#SBATCH --job-name=PE_align
 #SBATCH --partition=work
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --time=3-00:00:00
-#SBATCH --output=logs/Cr_align_%j.out
-#SBATCH --error=logs/Cr_align_%j.err
+#SBATCH --output=logs/PE_align_%j.out
+#SBATCH --error=logs/PE_align_%j.err
 # ---------------------------------------------------------------------------
 # Submit the Nextflow head job.
 #

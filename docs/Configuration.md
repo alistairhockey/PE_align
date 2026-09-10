@@ -39,15 +39,40 @@ as-is.
 | `--bwa_index` | built | Directory holding a prebuilt bwa index |
 | `--chr_regex` | `null` | Only call on sequences whose name matches. `null` means all. |
 | `--intervals_min_length` | `0` | Skip sequences shorter than this. |
+| `--skip_fasta_normalisation` | `false` | Skip CRLF and header-whitespace cleanup |
+
+### FASTA normalisation
+
+Before anything indexes the assembly, `NORMALISE_FASTA` strips CRLF line
+endings and trailing whitespace from header lines. Assemblies arrive in
+whatever state they were written in, and both of those quietly break a GATK
+stack — a stray CR inside a sequence line shifts coordinates, and header
+whitespace makes the `.dict` and the BAM header disagree about sequence names.
+`PBA_HatTrick.fasta` ships with CRLF endings, which is what prompted this.
+
+A clean FASTA passes through at no cost. The check reads only the first 2 MB
+rather than scanning the whole file.
+
+**Normalising changes byte offsets, which invalidates a `.fai` built against
+the original.** Supplying `--fasta_fai`, `--fasta_dict` or `--bwa_index` is
+therefore treated as an assertion that the FASTA is already clean, and
+normalisation is skipped with a log message rather than silently producing an
+index that disagrees with the sequence. For `PBA_HatTrick`, do **not** pass the
+`.fai` that ships beside it — let the pipeline normalise and rebuild.
 
 For an assembly with many unplaced scaffolds, `--chr_regex` and
-`--intervals_min_length` are the two levers that matter most for cost: the
-*C. echinospermum* assembly has 17,304 sequences, and scattering across all of
-them creates far more tasks than the genome justifies.
+`--intervals_min_length` are the two levers that matter most for cost. The
+*C. echinospermum* assembly has 17,304 sequences; scattering across all of them
+at 161 samples would create ~2.8 million HaplotypeCaller tasks.
 
 ```bash
---chr_regex '^cicec\.S2Drd065\.gnm1\.chr' --intervals_min_length 100000
+# PBA_HatTrick: 8 chromosomes + 2 unallocated scaffolds
+--chr_regex '_Chr' --intervals_min_length 1000000
 ```
+
+`PBA_HatTrick` needs neither, strictly — 10 sequences is already a small
+scatter — but excluding the two unallocated scaffolds (1.9 Mb of 698.8 Mb)
+keeps the call set to placed chromosomes.
 
 ## Stage toggles
 

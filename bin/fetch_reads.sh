@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# fetch_reads.sh -- download the Cr_align read set from ENA.
+# fetch_reads.sh -- download the PE_align read set from ENA.
 #
 # Resumable and idempotent: a file whose MD5 already matches the manifest is
 # skipped, a partial file is resumed with `curl -C -`, and a file that fails

@@ -1,4 +1,4 @@
-# Cr_align
+# PE_align
 
 Alignment and joint variant calling for *Cicer reticulatum* whole-genome
 short-read data, with per-task resource accounting for HPC allocation
@@ -10,7 +10,7 @@ assembly — and derives everything else.
 ```bash
 nextflow run . -profile uwa,apptainer \
     --sra_metadata assets/cret_metadata.tsv \
-    --fasta /path/to/assembly.fna \
+    --fasta /group/peg/cicer/chickpea/genome/PBA_HatTrick/PBA_HatTrick.fasta \
     --reads_dir /group/peg/cicer/cret/reads \
     --outdir results
 ```

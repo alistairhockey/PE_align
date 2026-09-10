@@ -1,4 +1,4 @@
-### Cr_align
+### PE_align
 
 - [Home](Home)
 - [Quick start](Quick-Start)

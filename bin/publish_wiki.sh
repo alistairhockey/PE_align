@@ -5,8 +5,8 @@
 # GitHub wikis are a separate git repository at <repo>.wiki.git. This copies
 # the Markdown in docs/ into a clone of it and pushes.
 #
-#   bin/publish_wiki.sh git@github.com:USER/Cr_align.wiki.git
-#   bin/publish_wiki.sh https://github.com/USER/Cr_align.wiki.git
+#   bin/publish_wiki.sh git@github.com:USER/PE_align.wiki.git
+#   bin/publish_wiki.sh https://github.com/USER/PE_align.wiki.git
 #
 # The wiki repository must exist first: open the repository's Wiki tab on
 # github.com and create any page once. GitHub does not create the wiki repo

@@ -87,7 +87,7 @@ Do not go straight to 238 runs. Measure first — see
 for n in 2 8 24; do
   sbatch bin/run_pipeline.sbatch -profile uwa,apptainer,bench_${n} \
       --sra_metadata assets/cret_metadata.tsv \
-      --fasta /path/to/assembly.fna \
+      --fasta /group/peg/cicer/chickpea/genome/PBA_HatTrick/PBA_HatTrick.fasta \
       --reads_dir /group/peg/cicer/cret/reads \
       --outdir results_bench${n} --benchmark_label bench${n}
 done
@@ -98,7 +98,7 @@ done
 ```bash
 sbatch bin/run_pipeline.sbatch -profile uwa,apptainer \
     --sra_metadata assets/cret_metadata.tsv \
-    --fasta /path/to/assembly.fna \
+    --fasta /group/peg/cicer/chickpea/genome/PBA_HatTrick/PBA_HatTrick.fasta \
     --reads_dir /group/peg/cicer/cret/reads \
     --outdir results \
     --benchmark_label full_v1 \

@@ -48,6 +48,9 @@ if ! flock -n 9; then
 fi
 echo $$ >&9
 
+# Record our process group so stop_fetch.sh can signal the whole tree.
+ps -o pgid= -p $$ | tr -d " " > "$OUTDIR/.fetch.pgid"
+
 # Any partial file left by a killed run is resumed, never trusted: the MD5
 # check after transfer is the only thing that marks a file complete.
 cleanup() {

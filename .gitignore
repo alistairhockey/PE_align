@@ -1,0 +1,62 @@
+# ---- Nextflow runtime ----
+.nextflow/
+.nextflow.log*
+work/
+results/
+benchmarks/
+report*.html
+timeline*.html
+trace*.txt
+dag*.html
+*.pid
+
+# ---- Credentials: NEVER commit ----
+# Pawsey Acacia / AWS keys live in ~/.nextflow/config or a local secrets file.
+# conf/secrets.config is git-ignored; conf/secrets.config.template is committed.
+conf/secrets.config
+.env
+*.pem
+*.key
+credentials
+aws_credentials
+
+# ---- Data ----
+*.fastq
+*.fastq.gz
+*.fq.gz
+*.bam
+*.bai
+*.cram
+*.crai
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.g.vcf.gz*
+*.fa
+*.fa.gz
+*.fna
+*.fasta
+*.dict
+*.fai
+*.gzi
+*.amb
+*.ann
+*.bwt
+*.pac
+*.sa
+reads/
+genomes/
+genome/
+
+# ---- Environments / editors ----
+__pycache__/
+*.pyc
+.venv/
+.conda/
+conda_envs/
+apptainer_cache/
+singularity_cache/
+.vscode/
+.idea/
+*.swp
+.DS_Store

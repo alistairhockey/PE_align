@@ -169,8 +169,22 @@ ceilings with `--max_cpus`, `--max_memory`, `--max_time`.
 
 ## Credentials
 
-**Never commit credentials.** `conf/secrets.config` is git-ignored.
+**Never commit credentials.** `conf/secrets.config` is git-ignored; only
+`conf/secrets.config.template` is tracked.
 
-The Acacia/AWS keys some setups keep in `~/.nextflow/config` are plaintext.
-If that file has been shared, copied, or is on a multi-user system, rotate
-the key pair in Acacia.
+**Do not keep them in `~/.nextflow/config` either.** That file is merged into
+every Nextflow run on the account, so a top-level `aws { accessKey ... }` block
+there is loaded by every pipeline you launch, not just the one it was added
+for. Pass credentials explicitly instead:
+
+```bash
+sbatch bin/run_pipeline.sbatch -profile uwa,apptainer -c conf/secrets.config ...
+```
+
+or via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in the environment.
+
+If a key pair has been sitting in a plaintext config on a shared system,
+rotate it. Deleting the file afterwards does not undo the exposure.
+
+See [Troubleshooting](Troubleshooting.md#nextflowconfig-silently-affects-every-run)
+for how to inspect what a run will actually load.

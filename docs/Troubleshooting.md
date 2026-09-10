@@ -147,6 +147,44 @@ sbatch --time=04:00:00 --cpus-per-task=1 --mem=4G bin/run_pipeline.sbatch ...
 Keep `queueSize` and `submitRateLimit` in the profile as they are — they stop
 Nextflow from flooding the scheduler with thousands of task submissions.
 
+## `~/.nextflow/config` silently affects every run
+
+Nextflow merges `~/.nextflow/config` into **every** run, before the project's
+own config. Two consequences worth knowing about.
+
+**Credentials leak into runs you did not intend.** A top-level `aws { accessKey
+= '...' secretKey = '...' }` block there is loaded by every pipeline you launch
+on that account, not just the one it was added for. Check with:
+
+```bash
+nextflow config -profile uwa | grep -A6 '^aws'
+```
+
+Keep credentials in a file you pass explicitly instead, and rotate anything
+that has been sitting in a plaintext home config:
+
+```bash
+cp conf/secrets.config.template conf/secrets.config   # git-ignored
+chmod 600 conf/secrets.config
+sbatch bin/run_pipeline.sbatch -profile uwa,apptainer -c conf/secrets.config ...
+```
+
+**Profile names collide.** If your home config defines a profile called
+`slurm`, `conda` or `apptainer`, it merges with this project's profile of the
+same name. That is usually harmless and occasionally not — a home `slurm`
+profile setting `process.queue = "work"` will apply on a cluster with no such
+partition.
+
+To see what a run will actually use:
+
+```bash
+nextflow config -profile uwa,apptainer          # merged: home + project
+nextflow config -C nextflow.config -profile uwa # project only
+```
+
+`-C` (capital) ignores every other config source. It is useful for diagnosis
+but not for real runs, since it also discards `-params-file` and site settings.
+
 ## `-resume` did not reuse anything
 
 Nextflow caches on input *content*, not filenames. Common causes:

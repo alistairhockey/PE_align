@@ -110,12 +110,42 @@ silently producing an empty cohort.
 The cluster is busy, not broken. Check with:
 
 ```bash
-sinfo -p work -o "%.10P %.6D %.20C"
+sinfo -p work -o "%.10P %.6D %.20C"     # CPUS(A/I/O/T): allocated/idle/other/total
+squeue -h -p work -t PENDING | wc -l    # how many jobs are ahead of you
 ```
 
-`CPUS(A/I/O/T)` shows allocated / idle / other / total. Nextflow's own
-`queueSize` and `submitRateLimit` in the profile keep it from flooding the
-scheduler; leave them alone unless you have been asked to.
+**`squeue --start` estimates ignore backfill.** A job can show a start time two
+days out and then begin within a minute, because the scheduler fits small,
+short jobs into gaps ahead of large reservations. Do not resubmit on the basis
+of that estimate alone.
+
+**What actually determines whether you backfill** is how big and how long the
+job is. A 4-core, 2-day request has to wait for a full priority slot. A
+1-core, 3-hour request slots into almost any gap.
+
+This matters most for the download, which is network-bound and needs almost no
+CPU. Rather than one long job, submit a chain of short ones:
+
+```bash
+bin/fetch_reads_chain.sh /group/peg/cicer/cret/reads 12 3 8
+#                        <outdir>                    n  h  parallel
+```
+
+Twelve 1-core, 3-hour jobs chained with `--dependency=afterany`. Each resumes
+exactly where the last stopped, because `fetch_reads.sh` is resumable and
+checksum-verified, and once every file verifies the remaining links exit
+within seconds. On a cluster with 187 jobs queued ahead, the first link
+started in under a minute where a 4-core/2-day job was estimated 32 hours out.
+
+The same principle applies to the Nextflow driver. Override the wall time at
+submission when you expect a short run:
+
+```bash
+sbatch --time=04:00:00 --cpus-per-task=1 --mem=4G bin/run_pipeline.sbatch ...
+```
+
+Keep `queueSize` and `submitRateLimit` in the profile as they are — they stop
+Nextflow from flooding the scheduler with thousands of task submissions.
 
 ## `-resume` did not reuse anything
 

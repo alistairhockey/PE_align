@@ -9,12 +9,15 @@ aligns, marks duplicates, joint-genotypes the cohort, and writes a full
 per-task record of CPU and memory use.
 
 ```bash
-nextflow run . -profile uwa,apptainer \
+sbatch bin/run_pipeline.sbatch -profile uwa,apptainer \
     --sra_metadata assets/cret_metadata.tsv \
     --fasta /path/to/assembly.fna \
     --reads_dir /group/peg/cicer/cret/reads \
     --outdir results
 ```
+
+Nothing runs on a login node: the sbatch wrapper puts the Nextflow driver in a
+small allocation, and the driver submits every task as its own job.
 
 Everything else — FASTQ downloads, `.fai`, `.dict`, the bwa index, scatter
 intervals, the samplesheet — is derived.
@@ -102,6 +105,8 @@ docs/                       wiki source
 | `bin/parse_runtable.py` | SRA run table → resolved manifest with URLs and MD5s |
 | `bin/fetch_run.py` | Download one FASTQ and verify its checksum |
 | `bin/fetch_reads.sh` | Bulk download outside Nextflow, resumable |
+| `bin/fetch_reads_chain.sh` | Submit that download as backfill-friendly chained jobs |
+| `bin/run_pipeline.sbatch` | Submit the Nextflow driver to SLURM |
 | `bin/stop_fetch.sh` | Stop a bulk download cleanly |
 | `bin/summarise_benchmark.py` | Trace → per-process resource table and right-sizing |
 | `bin/estimate_su.py` | Resource table → Setonix service-unit projection |

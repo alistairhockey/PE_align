@@ -11,7 +11,7 @@ process BUILD_INTERVALS {
     publishDir "${params.outdir}/reference/intervals", mode: params.publish_dir_mode
 
     conda      "conda-forge::gawk=5.3.0"
-    container  "biocontainers/gawk:5.3.0"
+    container  "quay.io/biocontainers/gawk:5.3.0"
 
     input:
     path fai

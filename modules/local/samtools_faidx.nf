@@ -4,7 +4,7 @@ process SAMTOOLS_FAIDX {
     publishDir "${params.outdir}/reference", mode: params.publish_dir_mode
 
     conda      "bioconda::samtools=1.21"
-    container  "biocontainers/samtools:1.21--h50ea8bc_0"
+    container  "quay.io/biocontainers/samtools:1.21--h50ea8bc_0"
 
     input:
     path fasta

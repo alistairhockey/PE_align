@@ -4,7 +4,7 @@ process BWA_INDEX {
     publishDir "${params.outdir}/reference/bwa", mode: params.publish_dir_mode
 
     conda      "bioconda::bwa=0.7.18"
-    container  "biocontainers/bwa:0.7.18--he4a0461_1"
+    container  "quay.io/biocontainers/bwa:0.7.18--he4a0461_1"
 
     input:
     path fasta

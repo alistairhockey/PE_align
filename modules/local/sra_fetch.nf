@@ -18,8 +18,8 @@ process SRA_FETCH {
     errorStrategy 'retry'
     maxRetries    3
 
-    conda     "conda-forge::curl conda-forge::coreutils"
-    container "biocontainers/gnu-wget:1.18--h60da905_5"
+    conda     "conda-forge::python=3.11"
+    container "python:3.11-slim"
 
     input:
     tuple val(meta), val(url_1), val(md5_1), val(url_2), val(md5_2)
@@ -32,22 +32,7 @@ process SRA_FETCH {
     def o1 = "${meta.run}_${meta.sample}_1.fastq.gz"
     def o2 = "${meta.run}_${meta.sample}_2.fastq.gz"
     """
-    set -euo pipefail
-
-    fetch() {
-        local url=\$1 md5=\$2 out=\$3
-        curl -sSL --fail --retry 5 --retry-delay 15 --connect-timeout 30 \\
-             --speed-limit 10240 --speed-time 120 -C - -o "\$out" "\$url"
-        local got
-        got=\$(md5sum "\$out" | cut -d' ' -f1)
-        if [ "\$got" != "\$md5" ]; then
-            echo "MD5 mismatch for \$out: expected \$md5, got \$got" >&2
-            rm -f "\$out"
-            return 1
-        fi
-    }
-
-    fetch '${url_1}' '${md5_1}' '${o1}'
-    fetch '${url_2}' '${md5_2}' '${o2}'
+    fetch_run.py '${url_1}' '${md5_1}' '${o1}'
+    fetch_run.py '${url_2}' '${md5_2}' '${o2}'
     """
 }

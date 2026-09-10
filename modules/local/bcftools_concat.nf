@@ -9,7 +9,7 @@ process BCFTOOLS_CONCAT {
     publishDir "${params.outdir}/variants", mode: params.publish_dir_mode
 
     conda      "bioconda::bcftools=1.21"
-    container  "biocontainers/bcftools:1.21--h8b25389_0"
+    container  "quay.io/biocontainers/bcftools:1.21--h8b25389_0"
 
     input:
     path vcfs

@@ -34,7 +34,7 @@ workflow PREPARE_GENOME {
         ch_fai = Channel.value(file(fai_in, checkIfExists: true))
     } else {
         SAMTOOLS_FAIDX(ch_fasta)
-        ch_fai      = SAMTOOLS_FAIDX.out.fai.first()
+        ch_fai      = SAMTOOLS_FAIDX.out.fai
         ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
     }
 
@@ -43,7 +43,7 @@ workflow PREPARE_GENOME {
         ch_dict = Channel.value(file(dict_in, checkIfExists: true))
     } else {
         GATK4_CREATESEQUENCEDICTIONARY(ch_fasta)
-        ch_dict     = GATK4_CREATESEQUENCEDICTIONARY.out.dict.first()
+        ch_dict     = GATK4_CREATESEQUENCEDICTIONARY.out.dict
         ch_versions = ch_versions.mix(GATK4_CREATESEQUENCEDICTIONARY.out.versions)
     }
 
@@ -52,17 +52,18 @@ workflow PREPARE_GENOME {
         ch_bwa = Channel.value(file(bwa_in, checkIfExists: true))
     } else {
         BWA_INDEX(ch_fasta)
-        ch_bwa      = BWA_INDEX.out.index.first()
+        ch_bwa      = BWA_INDEX.out.index
         ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
     }
 
     // ---- scatter intervals ----
-    BUILD_INTERVALS(ch_fai, min_length, chr_regex)
+    // A null --chr_regex means 'every sequence'; '.' matches all names.
+    BUILD_INTERVALS(ch_fai, min_length ?: 0, chr_regex ?: '.')
     ch_intervals = BUILD_INTERVALS.out.intervals.flatten()
 
     // Bundle the trio GATK always needs together, so no caller has to
     // reassemble it (and get the order wrong).
-    ch_ref = ch_fasta.combine(ch_fai).combine(ch_dict).map { f, i, d -> [f, i, d] }.first()
+    ch_ref = ch_fasta.combine(ch_fai).combine(ch_dict).map { f, i, d -> [f, i, d] }
 
     emit:
     fasta     = ch_fasta

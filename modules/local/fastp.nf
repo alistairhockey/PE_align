@@ -4,7 +4,7 @@ process FASTP {
     publishDir "${params.outdir}/qc/fastp", mode: params.publish_dir_mode, pattern: "*.{json,html}"
 
     conda      "bioconda::fastp=0.23.4"
-    container  "biocontainers/fastp:0.23.4--h5f740d0_0"
+    container  "quay.io/biocontainers/fastp:0.23.4--h5f740d0_0"
 
     input:
     tuple val(meta), path(reads)

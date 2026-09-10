@@ -33,7 +33,7 @@ workflow DOWNSTREAM {
 
     ch_winpca = Channel.empty()
     if (run_winpca) {
-        VCF_SPLIT_CHROM(VCF_PREP_PCA.out.vcf, fai, chr_regex, prefix)
+        VCF_SPLIT_CHROM(VCF_PREP_PCA.out.vcf, fai, chr_regex ?: '.', prefix)
         ch_winpca   = VCF_SPLIT_CHROM.out.vcfs
         ch_versions = ch_versions.mix(VCF_SPLIT_CHROM.out.versions)
     }

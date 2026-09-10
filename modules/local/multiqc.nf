@@ -4,7 +4,7 @@ process MULTIQC {
     publishDir "${params.outdir}/qc", mode: params.publish_dir_mode
 
     conda      "bioconda::multiqc=1.25"
-    container  "biocontainers/multiqc:1.25--pyhdfd78af_0"
+    container  "quay.io/biocontainers/multiqc:1.25--pyhdfd78af_0"
 
     input:
     path  '*'

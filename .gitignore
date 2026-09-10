@@ -64,3 +64,7 @@ singularity_cache/
 # ...but curated manifests under assets/ ARE tracked
 !assets/*.tsv
 !assets/*.csv
+
+# SLURM job logs
+logs/
+.apptainer_cache/

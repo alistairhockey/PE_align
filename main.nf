@@ -123,6 +123,20 @@ if (params.input && !file(params.input).exists())
 if (params.run_locus_pca && !params.loci_bed)
     errors << "--run_locus_pca requires --loci_bed."
 
+// Refuse to execute on the machine that launched the pipeline. On a cluster
+// that machine is a login node, and running compute there is both antisocial
+// and usually against policy. Tasks must go to the scheduler.
+def resolved_executor = (params.executor_name ?: 'local').toString()
+if (resolved_executor == 'local' && !params.allow_local_execution) {
+    errors << ("Executor resolved to 'local', which would run every task on this " +
+               "machine (a login node).\n    Use a scheduler profile, e.g. " +
+               "-profile uwa,apptainer, and submit the driver with:\n" +
+               "      sbatch bin/run_pipeline.sbatch <your args>\n" +
+               "    If you genuinely intend local execution (a laptop, or inside " +
+               "an interactive allocation),\n    pass -profile local " +
+               "--allow_local_execution true")
+}
+
 if (errors) {
     log.error "Parameter validation failed:\n  - " + errors.join("\n  - ") +
               "\n\nRun with --help for usage."

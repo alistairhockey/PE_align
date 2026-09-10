@@ -37,6 +37,26 @@ mkdir -p "$OUTDIR" || exit 1
 
 LOGDIR="$OUTDIR/.fetch_logs"; mkdir -p "$LOGDIR"
 
+# Single-writer lock. Two concurrent fetchers would resume the same partial
+# files and corrupt them, so refuse to start if one is already running.
+LOCK="$OUTDIR/.fetch.lock"
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "ERROR: another fetch_reads.sh is already running for $OUTDIR" >&2
+  echo "       (lock: $LOCK).  Wait for it, or kill it first." >&2
+  exit 3
+fi
+echo $$ >&9
+
+# Any partial file left by a killed run is resumed, never trusted: the MD5
+# check after transfer is the only thing that marks a file complete.
+cleanup() {
+  local rc=$?
+  pkill -P $$ curl 2>/dev/null
+  exit $rc
+}
+trap cleanup INT TERM
+
 # One download unit: url, expected md5, destination filename.
 fetch_one() {
   local url=$1 md5=$2 dest=$3 log="$LOGDIR/$(basename "$3").log"

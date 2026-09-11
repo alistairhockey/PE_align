@@ -117,6 +117,54 @@ overstates the total several-fold.
 An `--overhead` multiplier (default 1.15) covers retries, requeues and the
 reruns any real project needs.
 
+## Where the resource figures come from
+
+The attempt-1 values in `conf/base.config` are **measured, not estimated**.
+They derive from settings tested against the *C. echinospermum* cohort on a
+comparable ~700 Mb *Cicer* genome, where they were found sufficient to avoid
+OOM:
+
+| Process | Attempt 1 | Time |
+|---|--:|--:|
+| `BWA_MEM` | 16 cpus / 128 GB | 72 h |
+| `GATK4_MARKDUPLICATES` | 4 cpus / 64 GB | 24 h |
+| `SAMTOOLS_MERGE` | 4 cpus / 64 GB | 24 h |
+| `GATK4_HAPLOTYPECALLER` | 4 cpus / 64 GB | 24 h |
+| `GATK4_GENOMICSDBIMPORT` | 4 cpus / 64 GB | 72 h |
+| `GATK4_GENOTYPEGVCFS` | 4 cpus / **512 GB** | 72 h |
+
+Memory doubles per retry on top of these, so they are a floor rather than a
+ceiling. Do not reduce them without a trace to justify it — `p95 peak RSS` from
+`summarise_benchmark.py` is the right basis for tightening, and tightening is
+what makes an allocation request defensible. Guessing lower is what produces
+OOM.
+
+### This dictates the Setonix partition
+
+`GATK4_GENOTYPEGVCFS` at 512 GB **does not fit on a standard Setonix node**:
+
+| Partition | Cores | Memory |
+|---|--:|--:|
+| `work` / `long` | 128 | ~230 GB |
+| `highmem` | 128 | ~980 GB |
+
+A 512 GB request capped to 230 GB would simply OOM again, so `conf/setonix.config`
+sets `max_memory` to the highmem node and routes by what each task needs:
+
+```groovy
+queue = {
+    task.memory && task.memory > 230.GB ? 'highmem'
+  : task.time   && task.time   > 24.h   ? 'long'
+  :                                       'work'
+}
+```
+
+**This is a load-bearing point for the allocation application.** Joint
+genotyping this cohort requires `highmem`, which is charged at a higher rate
+than `work`. Budget for it explicitly rather than discovering it mid-run, and
+confirm the current highmem charge rate with Pawsey — `bin/estimate_su.py`
+takes `--node-mem-gb` and `--su-per-core-hour` as flags for exactly this.
+
 ## Coverage heterogeneity
 
 This cohort is not uniform, and a mean is misleading:

@@ -36,14 +36,29 @@ mkdir -p logs
 export NXF_APPTAINER_CACHEDIR="${NXF_APPTAINER_CACHEDIR:-$PROJECT_DIR/.apptainer_cache}"
 export NXF_SINGULARITY_CACHEDIR="$NXF_APPTAINER_CACHEDIR"
 export APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${TMPDIR:-/tmp}}"
-export NXF_OPTS="${NXF_OPTS:--Xms1g -Xmx6g}"
+# Derive the JVM heap from the actual SLURM allocation rather than hardcoding
+# it. A fixed -Xmx6g inside a --mem=4G allocation is an immediate OOM kill, and
+# the two silently diverge whenever --mem is overridden at submission time.
+if [[ -z "${NXF_OPTS:-}" ]]; then
+    mem_mb="${SLURM_MEM_PER_NODE:-}"
+    if [[ -z "$mem_mb" && -n "${SLURM_MEM_PER_CPU:-}" ]]; then
+        mem_mb=$(( SLURM_MEM_PER_CPU * ${SLURM_CPUS_PER_TASK:-1} ))
+    fi
+    mem_mb="${mem_mb:-8192}"
+    # 60% to the heap: the JVM also needs metaspace, thread stacks, direct
+    # buffers and whatever the driver forks.
+    heap_mb=$(( mem_mb * 60 / 100 ))
+    (( heap_mb < 1024 )) && heap_mb=1024
+    export NXF_OPTS="-Xms512m -Xmx${heap_mb}m"
+fi
 mkdir -p "$NXF_APPTAINER_CACHEDIR"
 
 echo "host        : $(hostname)"
 echo "job         : ${SLURM_JOB_ID:-none}"
 echo "project     : $PROJECT_DIR"
 echo "cache       : $NXF_APPTAINER_CACHEDIR"
-echo "nextflow    : $(nextflow -version 2>&1 | sed -n 's/.*version \(.*\)/\1/p' | head -1)"
+echo "slurm mem   : ${SLURM_MEM_PER_NODE:-?} MB"
+echo "NXF_OPTS    : $NXF_OPTS"
 echo "args        : $*"
 echo
 

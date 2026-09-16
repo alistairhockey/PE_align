@@ -40,11 +40,23 @@ workflow FETCH_READS {
     // Subset by sample for the scaling benchmarks, never by run: a sample must
     // keep all of its runs or its coverage is wrong.
     if (subset) {
-        ch_keep = ch_runs.map { m, a, b, c, d -> m.sample }
-            .unique().toSortedList().map { it.take(subset as int) }
-        ch_runs = ch_runs.combine(ch_keep)
-            .filter { m, u1, m1, u2, m2, keep -> keep.contains(m.sample) }
-            .map    { m, u1, m1, u2, m2, keep -> [m, u1, m1, u2, m2] }
+        // Subset by SAMPLE, never by run: a sample must keep every one of its
+        // runs or its coverage is silently wrong.
+        //
+        // Done as one collect/flatMap rather than combine() against a list
+        // channel. combine() spreads a List emission across separate tuple
+        // elements, so the filter closure was handed one argument per sample
+        // name instead of a single list -- "Invalid method invocation `call`
+        // with arguments: [...] on _closure6 type".
+        ch_runs = ch_runs
+            .toList()
+            .flatMap { rows ->
+                def keep = rows.collect { it[0].sample }
+                                .unique()
+                                .sort()
+                                .take(subset as int)
+                rows.findAll { keep.contains(it[0].sample) }
+            }
     }
 
     // Adopt anything already on disk.

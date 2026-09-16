@@ -48,7 +48,12 @@ workflow PREPARE_GENOME {
         ch_fasta = Channel.value(file(fasta, checkIfExists: true))
     } else {
         NORMALISE_FASTA(Channel.value(file(fasta, checkIfExists: true)))
-        ch_fasta = NORMALISE_FASTA.out.fasta
+        // .first() converts the process's queue output into a VALUE channel.
+        // Every reference artefact below is consumed by several processes --
+        // and ch_bwa by one BWA_MEM task per sample -- but a queue channel
+        // carrying a single item is exhausted by its first consumer. Without
+        // this, one sample would align and the rest would wait forever.
+        ch_fasta = NORMALISE_FASTA.out.fasta.first()
     }
 
     // ---- .fai ----
@@ -56,7 +61,7 @@ workflow PREPARE_GENOME {
         ch_fai = Channel.value(file(fai_in, checkIfExists: true))
     } else {
         SAMTOOLS_FAIDX(ch_fasta)
-        ch_fai      = SAMTOOLS_FAIDX.out.fai
+        ch_fai      = SAMTOOLS_FAIDX.out.fai.first()
         ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
     }
 
@@ -65,7 +70,7 @@ workflow PREPARE_GENOME {
         ch_dict = Channel.value(file(dict_in, checkIfExists: true))
     } else {
         GATK4_CREATESEQUENCEDICTIONARY(ch_fasta)
-        ch_dict     = GATK4_CREATESEQUENCEDICTIONARY.out.dict
+        ch_dict     = GATK4_CREATESEQUENCEDICTIONARY.out.dict.first()
         ch_versions = ch_versions.mix(GATK4_CREATESEQUENCEDICTIONARY.out.versions)
     }
 
@@ -74,7 +79,7 @@ workflow PREPARE_GENOME {
         ch_bwa = Channel.value(file(bwa_in, checkIfExists: true))
     } else {
         BWA_INDEX(ch_fasta)
-        ch_bwa      = BWA_INDEX.out.index
+        ch_bwa      = BWA_INDEX.out.index.first()
         ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
     }
 
@@ -84,8 +89,11 @@ workflow PREPARE_GENOME {
     ch_intervals = BUILD_INTERVALS.out.intervals.flatten()
 
     // Bundle the trio GATK always needs together, so no caller has to
-    // reassemble it (and get the order wrong).
-    ch_ref = ch_fasta.combine(ch_fai).combine(ch_dict).map { f, i, d -> [f, i, d] }
+    // reassemble it (and get the order wrong). Also a value channel: it is
+    // consumed once per HaplotypeCaller task, i.e. samples x intervals times.
+    ch_ref = ch_fasta.combine(ch_fai).combine(ch_dict)
+                     .map { f, i, d -> [f, i, d] }
+                     .first()
 
     emit:
     fasta     = ch_fasta

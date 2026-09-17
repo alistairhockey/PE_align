@@ -77,6 +77,40 @@ export NXF_APPTAINER_CACHEDIR=/group/sae001/ahockey/apptainer_cache
 apptainer pull docker://broadinstitute/gatk:4.6.1.0
 ```
 
+## `/usr/bin/env: 'python': No such file or directory` in a GATK task
+
+Exit status 127 from a GATK process under Apptainer:
+
+```
+Command error:
+  /usr/bin/env: 'python': No such file or directory
+```
+
+`gatk` is a Python wrapper script, so it needs `python` on `PATH`.
+
+**Why it happens.** Apptainer inherits the *host* environment by default,
+including `PATH` — Docker does not. The `broadinstitute/gatk` image keeps its
+interpreter in `/opt/miniconda/envs/gatk/bin`, which is not on the host `PATH`,
+so inside the container that directory is never searched and `python` is
+invisible. The same image works fine under Docker, which is why this only
+shows up on the cluster.
+
+**The fix** is the bioconda build, which installs into `/usr/local/bin` —
+a directory that *is* on essentially every host `PATH`, so it resolves
+correctly under inherited-environment semantics:
+
+```groovy
+container "quay.io/biocontainers/gatk4:4.6.1.0--py310hdfd78af_0"
+```
+
+Same GATK version, different packaging. This is why every container in this
+pipeline is a biocontainers image.
+
+The alternative — adding `--cleanenv` to `apptainer.runOptions` so the
+container's own `PATH` wins — is not used here: it also strips variables
+Nextflow and the scheduler rely on, and trades one class of surprise for
+another.
+
 ## Out-of-memory kills
 
 `conf/base.config` retries exit codes 104, 134, 137, 139, 140, 143 and 247 up

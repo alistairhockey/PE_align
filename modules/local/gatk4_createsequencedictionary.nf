@@ -4,7 +4,7 @@ process GATK4_CREATESEQUENCEDICTIONARY {
     publishDir "${params.outdir}/reference", mode: params.publish_dir_mode
 
     conda      "bioconda::gatk4=4.6.1.0"
-    container  "broadinstitute/gatk:4.6.1.0"
+    container  "quay.io/biocontainers/gatk4:4.6.1.0--py310hdfd78af_0"
 
     input:
     path fasta

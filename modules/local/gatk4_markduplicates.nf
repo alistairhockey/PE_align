@@ -12,7 +12,7 @@ process GATK4_MARKDUPLICATES {
     publishDir "${params.outdir}/qc/markdup",   mode: params.publish_dir_mode, pattern: "*.metrics.txt"
 
     conda      "bioconda::gatk4=4.6.1.0"
-    container  "broadinstitute/gatk:4.6.1.0"
+    container  "quay.io/biocontainers/gatk4:4.6.1.0--py310hdfd78af_0"
 
     input:
     tuple val(meta), path(bam)

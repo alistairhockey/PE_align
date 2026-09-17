@@ -13,7 +13,7 @@ process GATK4_HAPLOTYPECALLER {
     label      'process_long'
 
     conda      "bioconda::gatk4=4.6.1.0"
-    container  "broadinstitute/gatk:4.6.1.0"
+    container  "quay.io/biocontainers/gatk4:4.6.1.0--py310hdfd78af_0"
 
     input:
     tuple val(meta), path(bam), path(bai), path(interval)

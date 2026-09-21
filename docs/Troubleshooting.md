@@ -190,8 +190,36 @@ The node is uncontended, which is exactly what you want for measurements. But
 - **Joint genotyping at full cohort size will not.** `GENOTYPEGVCFS` also wants
   512 GB, a third of the node. Run that stage on `work`.
 
-Benchmark the per-sample stages on `benchmarking`; treat joint genotyping as a
-separate run on `work`.
+### Running everything on `benchmarking`
+
+Running the whole pipeline there is a reasonable first move — the node is
+uncontended, and 512 GB fits comfortably in its 1.5 TB. Only the 24 h ceiling
+is in question, and the honest way to find out whether it binds is to run and
+see.
+
+The profile is set up so a timeout tells you clearly rather than quietly
+burning days:
+
+```groovy
+// benchmarking.config
+errorStrategy = { task.exitStatus in [104,134,137,139,247] ? 'retry' : 'finish' }
+```
+
+Out-of-memory (137 and friends) still retries, because memory doubles per
+attempt and the node has headroom. **A timeout does not retry.** `max_time` is
+already pinned at the partition ceiling, so every retry would get the same
+24 h and fail identically — four attempts would spend four days learning
+nothing.
+
+If a stage does time out, the fix is a partition with a longer limit, not
+another attempt:
+
+```bash
+# that stage only, on work (3-day limit)
+sbatch bin/run_pipeline.sbatch -profile uwa,apptainer --outdir results/full -resume
+```
+
+`-resume` keeps everything already computed on the benchmarking node.
 
 ## Jobs stuck `PENDING (Priority)`
 

@@ -75,3 +75,4 @@ tests/test_samplesheet.csv
 
 # Local benchmark run outputs
 benchmark_runs/
+.selftest/

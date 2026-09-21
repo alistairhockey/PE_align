@@ -130,6 +130,7 @@ Combine one execution profile with one software profile.
 |---|---|
 | `standard` | Local execution. The default. |
 | `uwa` | UWA HPC. SLURM, `work` partition, 96 cores / 1.4 TB ceiling, `/group` and `/scratch` bound into containers. |
+| `benchmarking` | UWA's dedicated uncontended node (k003). Combine with `uwa`. Caps `max_time` at the partition's 24 h limit, without which 72 h tasks sit in `PartitionTimeLimit` forever. |
 | `setonix` | Pawsey Setonix. SLURM, 128 cores / 230 GB per node, work directory forced onto `/scratch`. |
 | `slurm` | Generic SLURM with no site assumptions. |
 

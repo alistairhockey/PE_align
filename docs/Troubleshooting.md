@@ -139,6 +139,60 @@ would be ~2.8 million `HaplotypeCaller` tasks. Restrict the scatter:
 `BUILD_INTERVALS` fails loudly if the regex matches nothing, rather than
 silently producing an empty cohort.
 
+## Jobs stuck `PENDING (PartitionTimeLimit)`
+
+This is **not** a queue wait — it is permanent. The job asks for more wall time
+than the partition allows, so SLURM will never schedule it:
+
+```
+     JOBID   NAME              PARTITION  TIME_LIMIT  STATE    REASON
+       785   nf-ALIGN_READS_B  benchmarki 3-00:00:00  PENDING  (PartitionTimeLimit)
+```
+
+Compare what the job asks for against the partition maximum:
+
+```bash
+sinfo -o "%.14P %.12l %.6D %.20C"        # TIMELIMIT column
+squeue -u $USER -o "%.10i %.16j %.10P %.11l %R"
+```
+
+On UWA:
+
+| Partition | Nodes | Wall limit |
+|---|--:|---|
+| `work` | 12 | 3 days |
+| `benchmarking` | 1 (k003) | **24 h** |
+| `ondemand` | 1 | 12 h |
+
+`conf/base.config` requests 72 h for `BWA_MEM`, `GENOMICSDBIMPORT` and
+`GENOTYPEGVCFS`, which is fine on `work` and impossible on `benchmarking`.
+
+**The fix** is the `benchmarking` profile, which lowers `params.max_time` to
+24 h so `check_max()` caps every request to fit:
+
+```bash
+sbatch bin/run_pipeline.sbatch -profile uwa,benchmarking,apptainer,bench_8 ...
+```
+
+Do not simply raise `max_time` back up to make the numbers look right — the
+partition limit is real, and the job will go straight back to
+`PartitionTimeLimit`.
+
+### What fits on the benchmarking node, and what does not
+
+The node is uncontended, which is exactly what you want for measurements. But
+24 h is a real constraint:
+
+- **Alignment and HaplotypeCaller fit.** At ~8x median on a ~700 Mb genome,
+  `BWA_MEM` is hours.
+- **The deepest samples may not.** `Besev_079` is ~146x, about 19x the median.
+  It is not in `bench_2` or `bench_8`.
+- **Joint genotyping at full cohort size will not.** `GENOTYPEGVCFS` also wants
+  512 GB, a third of the node. Run that stage on `work`.
+
+Benchmark the per-sample stages on `benchmarking`; treat joint genotyping as a
+separate run on `work`.
+
 ## Jobs stuck `PENDING (Priority)`
 
 The cluster is busy, not broken. Check with:

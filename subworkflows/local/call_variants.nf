@@ -45,7 +45,7 @@ workflow CALL_VARIANTS {
         .groupTuple()
         .join(ch_interval_files)
 
-    GATK4_GENOMICSDBIMPORT(ch_gendb_input)
+    GATK4_GENOMICSDBIMPORT(ch_gendb_input, reference)
     ch_versions = ch_versions.mix(GATK4_GENOMICSDBIMPORT.out.versions.first())
 
     GATK4_GENOTYPEGVCFS(GATK4_GENOMICSDBIMPORT.out.genomicsdb, reference)

@@ -111,6 +111,55 @@ container's own `PATH` wins — is not used here: it also strips variables
 Nextflow and the scheduler rely on, and trades one class of surprise for
 another.
 
+## GenomicsDBImport fails with `IndexOutOfBoundsException: Index: 0`
+
+Look further up the log, not at the stack trace:
+
+```
+WARNING  IntervalListCodec  Ignoring interval for unknown reference: <contig>:1-<len>
+INFO     IntervalArgumentCollection - Processing 0 bp from intervals
+```
+
+Zero intervals resolved, so the column-partition list is empty and
+GenomicsDBImport throws on `get(0)`. The exception is a symptom.
+
+**Cause.** A Picard-format `.interval_list` is parsed by `IntervalListCodec`,
+which needs an `@SQ` sequence-dictionary header to resolve contig names. A
+headerless file does not error — every interval is silently dropped as
+"unknown reference".
+
+**Why this is dangerous.** HaplotypeCaller hits the same parse, resolves zero
+bases, writes a gVCF containing only headers, and **exits 0**. The task goes
+green, the trace records COMPLETED, and the run continues producing nothing
+until a downstream step chokes on the emptiness.
+
+**The fix** is plain-text intervals (`.intervals`), one region per line:
+
+```
+PBA_HatTrick_Chr2_v1:1-77563191
+```
+
+No dictionary requirement, so it cannot fail this way. Measured against the
+same reference and contig:
+
+| Format | GATK reports |
+|---|---|
+| headerless `.interval_list` | `Processing 0 bp from intervals` |
+| plain `.intervals` | `Processing 77563191 bp from intervals` |
+
+`BUILD_INTERVALS` emits the plain form and validates every file before
+emitting it. `GATK4_HAPLOTYPECALLER` additionally asserts its gVCF contains at
+least one record, because a whole chromosome yielding none is never a valid
+result. `GATK4_GENOMICSDBIMPORT` now also receives `--reference`, which it
+previously lacked entirely.
+
+**If you suspect you have empty gVCFs**, check one directly — exit status will
+not tell you:
+
+```bash
+zcat sample.chr.g.vcf.gz | grep -vc '^#'     # 0 means no records
+```
+
 ## Out-of-memory kills
 
 `conf/base.config` retries exit codes 104, 134, 137, 139, 140, 143 and 247 up

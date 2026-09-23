@@ -17,6 +17,7 @@ process GATK4_GENOMICSDBIMPORT {
 
     input:
     tuple val(interval_name), path(gvcfs), path(tbis), path(interval)
+    tuple path(fasta), path(fai), path(dict)
 
     output:
     tuple val(interval_name), path("${interval_name}_gendb"), emit: genomicsdb
@@ -33,6 +34,7 @@ process GATK4_GENOMICSDBIMPORT {
 
     gatk --java-options "-Xmx${avail}g -Xms${Math.max(1, (avail/2).intValue())}g -XX:-UsePerfData" \\
         GenomicsDBImport \\
+        --reference ${fasta} \\
         --sample-name-map sample_map.tsv \\
         --genomicsdb-workspace-path ${interval_name}_gendb \\
         --intervals ${interval} \\

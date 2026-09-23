@@ -37,6 +37,19 @@ process GATK4_HAPLOTYPECALLER {
         --create-output-variant-index true \\
         --tmp-dir .
 
+    # GATK exits 0 after writing a gVCF with no records if the interval file
+    # resolved to nothing -- which is exactly what a headerless Picard
+    # .interval_list does. An empty gVCF is not a valid result for a whole
+    # chromosome, so fail here rather than letting it reach GenomicsDBImport.
+    n=\$(gzip -cd ${prefix}.g.vcf.gz | grep -vc '^#' || true)
+    if [ "\${n:-0}" -eq 0 ]; then
+        echo "ERROR: ${prefix}.g.vcf.gz contains no records." >&2
+        echo "The interval file probably resolved to zero bases -- check" >&2
+        echo "'Processing N bp from intervals' in the GATK log above." >&2
+        exit 1
+    fi
+    echo "gVCF records: \$n"
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         gatk4: \$(gatk --version 2>&1 | sed -n 's/^The Genome Analysis Toolkit (GATK) v//p')

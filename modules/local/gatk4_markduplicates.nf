@@ -23,7 +23,11 @@ process GATK4_MARKDUPLICATES {
     path "versions.yml"                                                , emit: versions
 
     script:
-    def avail = task.memory ? (task.memory.giga * 0.8).intValue() : 8
+    // 70%, not 80%. Picard's sorting collection, the I/O buffers and the JVM's
+    // own native allocation all live outside the heap, and at 64 GB an -Xmx51g
+    // heap left too little for them: Bari1_092 (~73x coverage, 340M+ records)
+    // was killed by the cgroup mid-write with exit 247.
+    def avail = task.memory ? (task.memory.giga * 0.7).intValue() : 8
     """
     gatk --java-options "-Xmx${avail}g -XX:-UsePerfData" MarkDuplicates \\
         --INPUT ${bam} \\

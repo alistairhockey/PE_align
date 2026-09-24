@@ -51,6 +51,45 @@ def stage_of(proc):
     return None
 
 
+def dedupe(rows):
+    """
+    Collapse retries: one record per logical task, keyed on process + tag.
+
+    sacct holds a row per SLURM job, so a task that ran in several pipeline
+    invocations appears several times and inflates both job counts and
+    core-hours.
+
+    The record kept is the LATEST by start time, not the first and not the
+    longest. That matters here: before the interval-format fix, HaplotypeCaller
+    resolved zero bases and completed in ~6 seconds, so those runs are all
+    COMPLETED with near-zero wall time. Keeping the first record per task
+    reported a 0.1-minute median against a true 14.6 minutes. The most recent
+    execution is the one that reflects the current pipeline.
+
+    MaxRSS is still taken as the maximum across every attempt, since that is
+    the memory the task actually needed at some point.
+    """
+    best, attempts = {}, defaultdict(int)
+    for r in rows:
+        key = (r["process"], r["tag"])
+        attempts[key] += 1
+        cur = best.get(key)
+        if cur is None:
+            best[key] = dict(r)
+            continue
+        peak = max(cur["rss"], r["rss"])
+        # Prefer a COMPLETED record; among those, the most recent start.
+        take = ((r["state"] == "COMPLETED" and cur["state"] != "COMPLETED") or
+                (r["state"] == "COMPLETED") == (cur["state"] == "COMPLETED")
+                and (r.get("start") or "") > (cur.get("start") or ""))
+        if take:
+            best[key] = dict(r)
+        best[key]["rss"] = peak
+    for key, rec in best.items():
+        rec["attempts"] = attempts[key]
+    return list(best.values())
+
+
 def build(rows, scale=1.0):
     by = defaultdict(list)
     unmapped = defaultdict(int)
@@ -78,10 +117,12 @@ def build(rows, scale=1.0):
         mean_wall = (wall / len(ts))
         rss = [t["rss"] for t in ts if t["rss"] > 0]
         mem = math.ceil(max(rss) * 1.25 / 2**30) if rss else None
+        retried = sum(1 for t in ts if t.get("attempts", 1) > 1)
         out.append(dict(stage=name, jobs=jobs, cores=cores,
                         wall=mean_wall,
                         mem=mem,
-                        cpuh=jobs * cores * mean_wall))
+                        cpuh=jobs * cores * mean_wall,
+                        retried=retried, ntasks=len(ts)))
     return out, unmapped
 
 
@@ -131,7 +172,7 @@ def main():
     ap.add_argument("--user", default=None)
     ap.add_argument("--scale-from", type=float)
     ap.add_argument("--scale-to", type=float)
-    ap.add_argument("--format", choices=["text", "markdown"], default="text")
+    ap.add_argument("--format", choices=["text", "markdown", "csv"], default="text")
     ap.add_argument("-o", "--output")
     args = ap.parse_args()
 
@@ -139,6 +180,10 @@ def main():
     rows = collect(args.since, user, r"^nf-")
     if not rows:
         sys.exit(f"no nf- jobs in accounting since {args.since}")
+    raw = len(rows)
+    rows = dedupe(rows)
+    print(f"# {raw} sacct records -> {len(rows)} distinct tasks after collapsing retries",
+          file=sys.stderr)
 
     scale, frm, to = 1.0, None, None
     if args.scale_from and args.scale_to:
@@ -146,7 +191,23 @@ def main():
         frm, to = int(args.scale_from), int(args.scale_to)
 
     table, unmapped = build(rows, scale)
-    text = render(table, args.format == "markdown", scale, frm, to)
+    if args.format == "csv":
+        import io, csv as _csv
+        buf = io.StringIO(); w = _csv.writer(buf)
+        w.writerow(["Stage","Jobs","Cores/job","Wall-time (h)","Memory (GB)","CPU h"])
+        for r in table:
+            if not r.get("jobs"):
+                w.writerow([r["stage"], "", "", "", "", ""])
+            else:
+                w.writerow([r["stage"], f"{r['jobs']:.0f}", f"{r['cores']:.0f}",
+                            f"{r['wall']:.2f}", r["mem"] if r["mem"] else "",
+                            f"{r['cpuh']:.0f}"])
+        w.writerow(["Total",
+                    f"{sum(r['jobs'] for r in table if r.get('jobs')):.0f}", "", "", "",
+                    f"{sum(r['cpuh'] for r in table if r.get('jobs')):.0f}"])
+        text = buf.getvalue().rstrip("\n")
+    else:
+        text = render(table, args.format == "markdown", scale, frm, to)
     if args.output:
         open(args.output, "w").write(text + "\n")
         print(f"wrote {args.output}", file=sys.stderr)

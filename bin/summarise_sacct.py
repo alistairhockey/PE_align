@@ -23,8 +23,8 @@ import subprocess
 import sys
 from collections import defaultdict
 
-FIELDS = ("JobID,JobName%60,State,Elapsed,TotalCPU,AllocCPUS,"
-          "ReqMem,MaxRSS,MaxVMSize,MaxDiskRead,MaxDiskWrite")
+FIELDS = ("JobID,JobName%200,State,Elapsed,TotalCPU,AllocCPUS,"
+          "ReqMem,MaxRSS,MaxVMSize,MaxDiskRead,MaxDiskWrite,Start")
 
 
 def to_bytes(v):
@@ -97,9 +97,9 @@ def collect(since, user, pattern):
     main, steps = {}, defaultdict(dict)
     for line in out.stdout.splitlines():
         f = line.split("|")
-        if len(f) < 11:
+        if len(f) < 12:
             continue
-        jid, name, state, el, tcpu, cpus, req, rss, vmem, dr, dw = f[:11]
+        jid, name, state, el, tcpu, cpus, req, rss, vmem, dr, dw, start = f[:12]
         base = jid.split(".")[0]
         if "." in jid:
             # Step record: keep the largest RSS seen for the job.
@@ -111,18 +111,20 @@ def collect(since, user, pattern):
                 cur["tcpu"] = tcpu
         else:
             main[base] = dict(name=name, state=state, elapsed=el, tcpu=tcpu,
-                              cpus=cpus, req=req)
+                              cpus=cpus, req=req, start=start)
 
     rows = []
     for jid, m in main.items():
         if not re.match(pattern, m["name"]):
             continue
         proc = re.sub(r"^nf-", "", m["name"])
+        tagm = re.search(r"_\((.*)\)\s*$", m["name"])
+        tag  = tagm.group(1) if tagm else ""
         proc = re.sub(r"_\(.*$", "", proc)
         proc = re.sub(r"_$", "", proc)
         s = steps.get(jid, {})
         rows.append(dict(
-            process=proc, state=m["state"],
+            process=proc, tag=tag, state=m["state"],
             elapsed=to_secs(m["elapsed"]),
             tcpu=max(to_secs(m["tcpu"]), to_secs(s.get("tcpu", "0"))),
             cpus=int(m["cpus"] or 1),
@@ -130,7 +132,8 @@ def collect(since, user, pattern):
             rss=to_bytes(s.get("rss", "0")),
             vmem=to_bytes(s.get("vmem", "0")),
             read=to_bytes(s.get("dr", "0")),
-            write=to_bytes(s.get("dw", "0"))))
+            write=to_bytes(s.get("dw", "0")),
+            start=m.get("start", "")))
     return rows
 
 

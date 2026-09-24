@@ -191,6 +191,40 @@ Stages with no tasks print an em dash rather than a zero. Do not fill those in
 by hand: an unrun stage has no measurement, and a reviewer is entitled to ask
 where a number came from.
 
+## Storage for an Acacia allocation
+
+`bin/storage_estimate.py` measures what a completed run actually produced and
+projects it, separating object storage from scratch because Pawsey allocates
+them separately and they differ by nearly 3x here.
+
+```bash
+bin/storage_estimate.py --measured-samples 24 --target-samples 161
+bin/storage_estimate.py --measured-samples 24 --target-samples 161 \
+    --format csv -o acacia_storage.csv
+```
+
+Scaling differs by artefact, which is the reason to do this rather than
+multiply one number:
+
+| Artefact | Scaling | Why |
+|---|---|---|
+| Raw reads | none | already complete at 238 runs |
+| BAMs, gVCFs | linear | one set per sample |
+| Reference + indices | fixed | independent of cohort size |
+| Cohort VCF | sub-linear | variant sites saturate as samples are added; each new sample adds one genotype column per site, not new sites |
+
+The cohort VCF uses a square-root scaling. **That is a conservative estimate,
+not a measurement** — confirm it against the full-cohort VCF when it exists.
+
+### Scratch is the larger number
+
+The Nextflow work directory is roughly **2.7x the archive** while a run is live,
+because it holds the trimmed FASTQs, the unmarked BAMs and the gVCF shards
+alongside everything that gets published. It is transient: delete it once
+outputs are published (`nextflow clean`, see
+[Troubleshooting](Troubleshooting.md)). Size the scratch request for the peak,
+not the residue.
+
 ## Coverage heterogeneity
 
 This cohort is not uniform, and a mean is misleading:

@@ -165,6 +165,32 @@ than `work`. Budget for it explicitly rather than discovering it mid-run, and
 confirm the current highmem charge rate with Pawsey — `bin/estimate_su.py`
 takes `--node-mem-gb` and `--su-per-core-hour` as flags for exactly this.
 
+## The allocation application table
+
+`bin/allocation_table.py` groups processes into the stages a reviewer thinks in
+and keeps the arithmetic self-consistent — **CPU h = Jobs x Cores/job x
+Wall-time** — because that is the first thing anyone checks.
+
+```bash
+bin/allocation_table.py --since 2026-09-20                              # measured
+bin/allocation_table.py --since 2026-09-20 --scale-from 24 --scale-to 161
+bin/allocation_table.py --since 2026-09-20 --format markdown -o table.md
+```
+
+Column meanings, which matter if you are asked to defend them:
+
+| Column | What it is |
+|---|---|
+| Jobs | Task count |
+| Cores/job | Cores weighted by wall time, so a stage mixing 16-core alignment with 1-core indexing reports the cores that actually cost something |
+| Wall-time (h) | **Mean per job**, so the CPU h product holds |
+| Memory (GB) | Observed peak RSS + 25% headroom — what is worth requesting, not what was requested |
+| CPU h | Jobs x Cores/job x Wall-time |
+
+Stages with no tasks print an em dash rather than a zero. Do not fill those in
+by hand: an unrun stage has no measurement, and a reviewer is entitled to ask
+where a number came from.
+
 ## Coverage heterogeneity
 
 This cohort is not uniform, and a mean is misleading:

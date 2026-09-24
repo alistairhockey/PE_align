@@ -12,6 +12,12 @@ process GATK4_HAPLOTYPECALLER {
     label      'process_medium'
     label      'process_long'
 
+    // Off by default: 1288 shards for the full cohort is ~106 GB, and the
+    // merged per-sample gVCFs carry the same information. Enable when you need
+    // the scatter units themselves.
+    publishDir "${params.outdir}/gvcf/per_interval", mode: params.publish_dir_mode,
+               enabled: params.save_interval_gvcfs
+
     conda      "bioconda::gatk4=4.6.1.0"
     container  "quay.io/biocontainers/gatk4:4.6.1.0--py310hdfd78af_0"
 

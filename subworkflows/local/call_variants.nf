@@ -13,6 +13,7 @@
  */
 
 include { GATK4_HAPLOTYPECALLER   } from '../../modules/local/gatk4_haplotypecaller'
+include { GATK4_MERGEVCFS         } from '../../modules/local/gatk4_mergevcfs'
 include { GATK4_GENOMICSDBIMPORT  } from '../../modules/local/gatk4_genomicsdbimport'
 include { GATK4_GENOTYPEGVCFS     } from '../../modules/local/gatk4_genotypegvcfs'
 include { BCFTOOLS_CONCAT         } from '../../modules/local/bcftools_concat'
@@ -36,6 +37,17 @@ workflow CALL_VARIANTS {
 
     GATK4_HAPLOTYPECALLER(ch_hc_input, reference)
     ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
+
+    // Per-sample genome-wide gVCFs, kept for post-hoc population genetics
+    // (dxy, windowed divergence, divergence dating). These retain the
+    // reference-confidence blocks that joint calling collapses away, so they
+    // cannot be reconstructed from the cohort VCF.
+    ch_by_sample = GATK4_HAPLOTYPECALLER.out.gvcf
+        .map { meta, interval_name, gvcf, tbi -> [ meta.id, gvcf, tbi ] }
+        .groupTuple()
+
+    GATK4_MERGEVCFS(ch_by_sample, reference)
+    ch_versions = ch_versions.mix(GATK4_MERGEVCFS.out.versions.first())
 
     // Re-key by interval and gather every sample's shard for that interval.
     ch_interval_files = intervals.map { iv -> [ iv.baseName, iv ] }
@@ -75,6 +87,7 @@ workflow CALL_VARIANTS {
     }
 
     emit:
+    gvcf     = GATK4_MERGEVCFS.out.gvcf     // [sample, gvcf, tbi] per sample
     raw      = ch_raw
     vcf      = ch_final
     versions = ch_versions

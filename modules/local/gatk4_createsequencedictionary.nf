@@ -17,9 +17,13 @@ process GATK4_CREATESEQUENCEDICTIONARY {
     // Give the JVM most of the request but leave headroom for native/off-heap.
     def avail = task.memory ? (task.memory.giga * 0.8).intValue() : 4
     """
+    set -euo pipefail
     gatk --java-options "-Xmx${avail}g" CreateSequenceDictionary \\
         --REFERENCE ${fasta} \\
         --OUTPUT ${fasta.baseName.replaceAll(/\.(fa|fasta|fna)$/, "")}.dict
+
+    d=${fasta.baseName.replaceAll(/\.(fa|fasta|fna)$/, "")}.dict
+    grep -q '^@SQ' "\$d" || { echo "ERROR: \$d has no @SQ records" >&2; exit 1; }
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

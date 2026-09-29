@@ -16,7 +16,9 @@ process SAMTOOLS_FAIDX {
 
     script:
     """
+    set -euo pipefail
     samtools faidx ${fasta}
+    [ -s ${fasta}.fai ] || { echo "ERROR: ${fasta}.fai is missing or empty" >&2; exit 1; }
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

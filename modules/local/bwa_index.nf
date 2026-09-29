@@ -15,8 +15,23 @@ process BWA_INDEX {
 
     script:
     """
+    set -euo pipefail
     mkdir bwa
     bwa index -p bwa/${fasta.baseName} ${fasta}
+
+    # `mkdir bwa` succeeds even when indexing does not, so the output glob
+    # would match an empty directory and the task would pass. Every downstream
+    # BWA_MEM then fails with "fail to locate the index files". Validate that
+    # all five index files exist and are non-empty before emitting.
+    for ext in amb ann bwt pac sa; do
+        f=bwa/${fasta.baseName}.\$ext
+        if [ ! -s "\$f" ]; then
+            echo "ERROR: bwa index incomplete -- \$f missing or empty" >&2
+            ls -la bwa/ >&2
+            exit 1
+        fi
+    done
+    echo "bwa index complete:"; ls -la bwa/
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

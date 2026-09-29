@@ -160,6 +160,59 @@ not tell you:
 zcat sample.chr.g.vcf.gz | grep -vc '^#'     # 0 means no records
 ```
 
+## Tasks fail with exit 11 / `Disk quota exceeded`
+
+```
+rsync: write failed on ".../sample_2.trim.fastq.gz": Disk quota exceeded (122)
+rsync error: error in file IO (code 11)
+```
+
+The task itself **succeeded**. `scratch = true` runs it in node-local storage,
+and the failure is rsync copying results back to shared storage. Exit 11 is
+rsync's IO error code, not a tool error — so this looks nothing like a resource
+problem and raising cpus or memory will not help.
+
+Confirm directly rather than trusting `df`, which reports the whole filesystem
+and not your quota:
+
+```bash
+dd if=/dev/zero of=/group/<your path>/.probe bs=1M count=200 && rm -f /group/<your path>/.probe
+```
+
+Exit 11 is in the fail-fast list, so the run stops rather than retrying. That is
+deliberate: a full filesystem is not transient, and each retry writes more.
+
+### Freeing space: what NOT to delete
+
+`stageInMode = 'symlink'` (conf/uwa.config) means a task's inputs are symlinks
+into its upstream task's work directory. **Deleting a work directory breaks any
+run that still depends on it**, even a run using a different `-w`:
+
+```
+[E::bwa_idx_load_from_disk] fail to locate the index files
+```
+
+That was a deleted `BWA_INDEX` work directory. The index had been published
+safely to `<outdir>/reference/bwa/`, but the *staging symlink* pointed at the
+work copy.
+
+Safe to delete:
+
+- work directories of runs you will never resume — check with `nextflow log`
+- superseded sessions, via `nextflow clean -n <run>` first to preview
+- anything under `<outdir>/` is published and independent of the work directory
+
+Before deleting a work directory, confirm no live run references it:
+
+```bash
+nextflow log                       # which runs exist, and their sessions
+squeue -u $USER                    # is anything still running
+```
+
+If a work directory has already been deleted under a resumable session, the
+cache entries pointing into it are unusable. Starting fresh is usually cheaper
+than discovering dangling symlinks one stage at a time.
+
 ## Out-of-memory kills
 
 `conf/base.config` retries exit codes 104, 134, 137, 139, 140, 143 and 247 up

@@ -24,7 +24,9 @@
 nextflow.enable.dsl = 2
 
 include { FETCH_READS    } from './subworkflows/local/fetch_reads'
-include { INPUT_CHECK    } from './subworkflows/local/input_check'
+include { INPUT_CHECK      } from './subworkflows/local/input_check'
+include { BAM_INPUT_CHECK  } from './subworkflows/local/bam_input_check'
+include { PROCESS_BAMS     } from './subworkflows/local/process_bams'
 include { PREPARE_GENOME } from './subworkflows/local/prepare_genome'
 include { ALIGN_READS    } from './subworkflows/local/align_reads'
 include { CALL_VARIANTS  } from './subworkflows/local/call_variants'
@@ -112,10 +114,14 @@ if (!params.fasta)
 else if (!file(params.fasta).exists())
     errors << "--fasta not found: ${params.fasta}"
 
-if (!params.sra_metadata && !params.input)
-    errors << "Provide either --sra_metadata <SraRunTable.txt> or --input <samplesheet.csv>."
-if (params.sra_metadata && params.input)
-    errors << "--sra_metadata and --input are mutually exclusive; pick one."
+def n_inputs = [params.sra_metadata, params.input, params.bam_input].count { it }
+if (n_inputs == 0)
+    errors << ("Provide one of --sra_metadata <SraRunTable.txt>, --input <samplesheet.csv>, " +
+               "or --bam_input <bams.csv> (sample,run,bam) to resume from existing alignments.")
+if (n_inputs > 1)
+    errors << "--sra_metadata, --input and --bam_input are mutually exclusive; pick one."
+if (params.bam_input && !file(params.bam_input).exists())
+    errors << "--bam_input not found: ${params.bam_input}"
 if (params.sra_metadata && !file(params.sra_metadata).exists())
     errors << "--sra_metadata not found: ${params.sra_metadata}"
 if (params.input && !file(params.input).exists())
@@ -176,8 +182,17 @@ workflow {
 
     ch_versions = Channel.empty()
 
-    // ---- Reads ----
-    if (params.sra_metadata) {
+    // ---- Reads, or existing alignments ----
+    // --bam_input skips read fetching, trimming and alignment entirely and
+    // enters at the per-sample BAM stage. Alignment is by far the most
+    // expensive stage, so an unrelated downstream failure should not cost it.
+    ch_reads    = Channel.empty()
+    ch_run_bams = Channel.empty()
+
+    if (params.bam_input) {
+        BAM_INPUT_CHECK(file(params.bam_input), subset)
+        ch_run_bams = BAM_INPUT_CHECK.out.bams
+    } else if (params.sra_metadata) {
         FETCH_READS(
             file(params.sra_metadata),
             params.reads_dir,
@@ -210,23 +225,37 @@ workflow {
                         .replaceAll(/\.(fa|fasta|fna)$/, '')
     def prefix     = params.benchmark_label ?: 'cohort'
 
-    // ---- Align ----
-    ALIGN_READS(
-        ch_reads,
-        PREPARE_GENOME.out.bwa,
-        fasta_name,
-        PREPARE_GENOME.out.reference,
-        params.trim_reads,
-        params.skip_qc,
-        params.skip_markduplicates
-    )
-    ch_versions = ch_versions.mix(ALIGN_READS.out.versions)
+    // ---- Align, or process the supplied alignments ----
+    if (params.bam_input) {
+        PROCESS_BAMS(
+            ch_run_bams,
+            PREPARE_GENOME.out.reference,
+            params.skip_markduplicates,
+            params.skip_qc
+        )
+        ch_bam      = PROCESS_BAMS.out.bam
+        ch_qc       = PROCESS_BAMS.out.qc
+        ch_versions = ch_versions.mix(PROCESS_BAMS.out.versions)
+    } else {
+        ALIGN_READS(
+            ch_reads,
+            PREPARE_GENOME.out.bwa,
+            fasta_name,
+            PREPARE_GENOME.out.reference,
+            params.trim_reads,
+            params.skip_qc,
+            params.skip_markduplicates
+        )
+        ch_bam      = ALIGN_READS.out.bam
+        ch_qc       = ALIGN_READS.out.qc
+        ch_versions = ch_versions.mix(ALIGN_READS.out.versions)
+    }
 
     // ---- Call ----
     if (!params.skip_variant_calling) {
 
         CALL_VARIANTS(
-            ALIGN_READS.out.bam,
+            ch_bam,
             PREPARE_GENOME.out.reference,
             PREPARE_GENOME.out.fai,
             PREPARE_GENOME.out.intervals,
@@ -252,7 +281,7 @@ workflow {
 
     // ---- Reporting ----
     if (!params.skip_multiqc) {
-        MULTIQC(ALIGN_READS.out.qc.collect().ifEmpty([]))
+        MULTIQC(ch_qc.collect().ifEmpty([]))
     }
 }
 

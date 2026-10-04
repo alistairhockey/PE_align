@@ -109,6 +109,48 @@ sbatch bin/run_pipeline.sbatch -profile uwa,apptainer \
 `-resume` is safe and should be your default. Nextflow caches on input
 content, so re-running after a failure recomputes only what actually changed.
 
+## Resuming from existing alignments
+
+Alignment is the most expensive stage by a wide margin — roughly 625 GB and
+~700 core-hours for 238 runs. If a downstream failure (a full filesystem, a
+wiped work directory) costs you the work directory but the BAMs survive,
+`--bam_input` re-enters the pipeline at the per-sample BAM stage and skips
+fetching, trimming and alignment entirely.
+
+```bash
+# 1. build the sheet from a directory of per-run BAMs
+bin/make_bam_samplesheet.py \
+    -d /path/to/alignments \
+    -o bams.csv \
+    --manifest assets/cret_runs.tsv      # warns about any run with no BAM
+
+# 2. run from there
+sbatch bin/run_pipeline.sbatch -profile uwa,benchmarking,apptainer \
+    --bam_input bams.csv \
+    --fasta /group/peg/cicer/chickpea/genome/PBA_HatTrick/PBA_HatTrick.fasta \
+    --chr_regex '_Chr' \
+    --outdir results/from_bams \
+    --benchmark_label from_bams
+```
+
+The sheet is `sample,run,bam`, one row per sequencing run. Runs sharing a
+`sample` are merged, exactly as in a full run.
+
+`make_bam_samplesheet.py` parses sample and run from the filename
+(`<sample>_<run>.bam`) and checks each BAM's `@RG SM` tag against it.
+Everything downstream takes sample identity from the BAM header rather than
+from the sheet, so a mismatch would silently mis-assign genotypes — the script
+refuses those rows instead.
+
+**What still runs:** merge, duplicate marking, alignment QC, variant calling,
+joint genotyping, filtering, and the PCA forks.
+
+**For benchmarking:** the trace covers only the stages that execute, so
+alignment will be absent from it. Take alignment's figures from the run that
+produced the BAMs (`bin/summarise_sacct.py` works from SLURM accounting even
+when no trace survives) and combine them with this run's trace for the
+complete picture.
+
 ## Using a samplesheet instead
 
 If your reads did not come from SRA, skip `--sra_metadata` and supply

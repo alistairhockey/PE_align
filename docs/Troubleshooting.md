@@ -182,6 +182,38 @@ dd if=/dev/zero of=/group/<your path>/.probe bs=1M count=200 && rm -f /group/<yo
 Exit 11 is in the fail-fast list, so the run stops rather than retrying. That is
 deliberate: a full filesystem is not transient, and each retry writes more.
 
+### Put the work directory on scratch, not /group
+
+A full-cohort run needs roughly **1.4 TB of transient work space**, which is
+more than a project quota on /group will usually allow. The `uwa` profile
+therefore defaults `workDir` to `$MYSCRATCH/PE_align/work`.
+
+Check which filesystem actually has headroom before launching — `df` reports
+the whole filesystem and tells you nothing about your quota, so write a real
+file:
+
+```bash
+for p in "$MYSCRATCH" /group/<project>/<user>; do
+    dd if=/dev/zero of="$p/.probe" bs=1M count=20480 2>/dev/null \
+      && echo "$p OK" || echo "$p FAILED"
+    rm -f "$p/.probe"
+done
+```
+
+**`--outdir` matters too.** Publishing writes BAMs, gVCFs and VCFs — ~1.7 TB
+for the full cohort — so a quota-bound `--outdir` fails with
+`Failed to publish file`, even when the work directory is fine. Put both on
+scratch while a run is in progress:
+
+```bash
+--outdir "$MYSCRATCH/PE_align/results" -w "$MYSCRATCH/PE_align/work"
+```
+
+**Scratch is usually purged on a schedule.** The work directory is disposable,
+but published results are not: copy them somewhere durable (project storage, or
+Acacia) before the purge window. `bin/storage_estimate.py` sizes what has to be
+kept versus what is transient.
+
 ### Freeing space: what NOT to delete
 
 `stageInMode = 'symlink'` (conf/uwa.config) means a task's inputs are symlinks

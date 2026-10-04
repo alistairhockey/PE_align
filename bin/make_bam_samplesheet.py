@@ -87,7 +87,13 @@ def main():
         sys.exit("ERROR: no usable BAMs")
 
     with open(args.output, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=["sample", "run", "bam"])
+        # lineterminator="\n": csv.writer defaults to \r\n, which puts a
+        # trailing CR on the last field of every row. Nextflow's splitCsv
+        # strip:true happens to absorb it, but any shell or awk consumer of
+        # this file gets a path ending in CR -- the same CRLF class of bug as
+        # the reference FASTA.
+        w = csv.DictWriter(fh, fieldnames=["sample", "run", "bam"],
+                           lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
 

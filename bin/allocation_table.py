@@ -168,7 +168,9 @@ def render(rows, markdown, scale, frm, to):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--since", required=True)
+    ap.add_argument("--since", help="start date for a live sacct query")
+    ap.add_argument("--from-file", action="append", default=None,
+                    help="read stored sacct snapshot(s) instead; repeatable")
     ap.add_argument("--user", default=None)
     ap.add_argument("--scale-from", type=float)
     ap.add_argument("--scale-to", type=float)
@@ -177,9 +179,16 @@ def main():
     args = ap.parse_args()
 
     user = args.user or os.environ.get("USER")
-    rows = collect(args.since, user, r"^nf-")
+    if not args.since and not args.from_file:
+        sys.exit("give --since for a live query, or --from-file for snapshot(s)")
+    rows = []
+    if args.from_file:
+        for f in args.from_file:
+            rows.extend(collect(None, user, r"^nf-", from_file=f))
+    else:
+        rows = collect(args.since, user, r"^nf-")
     if not rows:
-        sys.exit(f"no nf- jobs in accounting since {args.since}")
+        sys.exit("no nf- job records found")
     raw = len(rows)
     rows = dedupe(rows)
     print(f"# {raw} sacct records -> {len(rows)} distinct tasks after collapsing retries",

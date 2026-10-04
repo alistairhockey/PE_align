@@ -87,12 +87,32 @@ def p95(xs):
     return xs[min(len(xs) - 1, int(math.ceil(0.95 * len(xs)) - 1))]
 
 
-def collect(since, user, pattern):
+def raw_sacct(since, user):
+    """Pipe-separated sacct output, exactly as stored in a snapshot."""
     out = subprocess.run(
         ["sacct", "-u", user, "-S", since, "-P", "-n", "--format=" + FIELDS],
         capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit(f"sacct failed: {out.stderr.strip()}")
+    return out.stdout
+
+
+def collect(since, user, pattern, from_file=None):
+    """
+    Parse accounting records into per-task rows.
+
+    `from_file` reads a stored snapshot (see bin/snapshot_stats.sh) rather than
+    querying sacct. SLURM accounting is rotated and job-ID counters reset, so a
+    run's statistics are only reliably available for a limited window --
+    snapshots are what make a long project's figures reproducible months later.
+    """
+    if from_file:
+        text = open(from_file).read()
+    else:
+        text = raw_sacct(since, user)
+    class _O:
+        pass
+    out = _O(); out.stdout = text; out.returncode = 0
 
     main, steps = {}, defaultdict(dict)
     for line in out.stdout.splitlines():
@@ -227,7 +247,9 @@ def render(sums, rows, markdown=False):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--since", required=True, help="start date, e.g. 2026-09-22")
+    ap.add_argument("--since", help="start date, e.g. 2026-09-22 (live sacct query)")
+    ap.add_argument("--from-file", action="append", default=None,
+                    help="read a stored sacct snapshot instead; repeatable")
     ap.add_argument("--user", default=None)
     ap.add_argument("--pattern", default=r"^nf-", help="job-name regex")
     ap.add_argument("--format", choices=["text", "markdown"], default="text")
@@ -237,9 +259,16 @@ def main():
 
     import os
     user = args.user or os.environ.get("USER")
-    rows = collect(args.since, user, args.pattern)
+    if not args.since and not args.from_file:
+        sys.exit("give --since for a live query, or --from-file for a snapshot")
+    rows = []
+    if args.from_file:
+        for f in args.from_file:
+            rows.extend(collect(None, user, args.pattern, from_file=f))
+    else:
+        rows = collect(args.since, user, args.pattern)
     if not rows:
-        sys.exit(f"no jobs matching {args.pattern!r} since {args.since}")
+        sys.exit("no matching job records found")
     sums = summarise(rows, only_ok=not args.include_failed)
     text = render(sums, rows, markdown=(args.format == "markdown"))
     if args.output:

@@ -1,0 +1,51 @@
+======================================================================================================================
+CPU AND MEMORY USAGE BY PROCESS   (source: SLURM accounting)
+======================================================================================================================
+process                              n  cpu  cpu%   median      max   req mem   p95 RSS   max RSS  mem%   suggest
+----------------------------------------------------------------------------------------------------------------------
+ALIGN_READS_BWA_MEM                289   16   90%    36.5m    6.18h   64.0 GB   27.5 GB   31.5 GB   43%     35 GB
+ALIGN_READS_FASTP                  540    8   58%      53s    13.6m   64.0 GB    3.1 GB   60.9 GB    5%      4 GB
+ALIGN_READS_FASTQC                 464    3   45%     1.2m    22.6m    8.0 GB    1.7 GB    1.9 GB   21%      3 GB
+ALIGN_READS_GATK4_MARKDUPLICATES    52    4   36%     3.6m    26.3m   64.0 GB   46.1 GB   84.4 GB   72%     58 GB
+ALIGN_READS_SAMTOOLS_MERGE          15    4   93%     1.4m     2.6m   64.0 GB   91.5 MB   91.5 MB    0%      1 GB
+ALIGN_READS_SAMTOOLS_STATS          49    2   59%     2.7m    16.2m    8.0 GB  113.0 MB  115.6 MB    1%      1 GB
+CALL_VARIANTS_BCFTOOLS_CONCAT        1    8   35%     2.4m     2.4m   32.0 GB  122.7 MB  122.7 MB    0%      1 GB
+CALL_VARIANTS_GATK4_GENOMICSDBIMP    8    4   25%    33.8m    46.6m   64.0 GB   14.8 GB   14.8 GB   23%     19 GB
+CALL_VARIANTS_GATK4_GENOTYPEGVCFS    8    4   22%    59.2m    1.40h  512.0 GB   20.3 GB   20.3 GB    4%     26 GB
+CALL_VARIANTS_GATK4_HAPLOTYPECALL  467    4   66%    14.6m    1.36h   64.0 GB    5.7 GB    6.8 GB    9%      8 GB
+CALL_VARIANTS_GATK4_VARIANTFILTRA    1    4   28%    10.1m    10.1m   64.0 GB    1.6 GB    1.6 GB    3%      3 GB
+MULTIQC                              2    8    6%      16s      19s   32.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_BUILD_INTERVALS       3    1   36%       1s       1s    4.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_BWA_INDEX             2   10   10%     8.0m     8.2m   40.0 GB    1.1 GB    1.1 GB    3%      2 GB
+PREPARE_GENOME_GATK4_CREATESEQUEN    2    2   41%       9s      11s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_NORMALISE_FASTA       2    2   61%      20s      20s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_SAMTOOLS_FAIDX        2    2   62%       2s       2s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+----------------------------------------------------------------------------------------------------------------------
+TOTAL                             1907                                                                     4,822h
+
+Total core-hours consumed : 4,821.9
+Total wall time in tasks  : 19.86d
+I/O                       : 11.7 TB read, 9.0 TB written
+
+NON-COMPLETED TASKS
+  ALIGN_READS_BWA_MEM                          CANCELLED by 11022 54
+  ALIGN_READS_BWA_MEM                          FAILED         42
+  ALIGN_READS_BWA_MEM                          OUT_OF_MEMORY  1
+  ALIGN_READS_FASTP                            CANCELLED by 11022 27
+  ALIGN_READS_FASTP                            FAILED         29
+  ALIGN_READS_FASTP                            OUT_OF_MEMORY  4
+  ALIGN_READS_FASTQC                           CANCELLED by 11022 24
+  ALIGN_READS_FASTQC                           FAILED         1
+  ALIGN_READS_GATK4_MARKDUPLICATES             CANCELLED by 11022 38
+  ALIGN_READS_GATK4_MARKDUPLICATES             FAILED         12
+  ALIGN_READS_GATK4_MARKDUPLICATES             OUT_OF_MEMORY  3
+  ALIGN_READS_SAMTOOLS_MERGE                   CANCELLED by 11022 16
+  ALIGN_READS_SAMTOOLS_MERGE                   FAILED         22
+  CALL_VARIANTS_GATK4_GENOMICSDBIMPORT         FAILED         8
+  PREPARE_GENOME_BWA_INDEX                     CANCELLED by 11022 1
+  PREPARE_GENOME_NORMALISE_FASTA               CANCELLED by 11022 2
+
+cpu%    = TotalCPU / (wall x allocated cores). Low means cores idle.
+mem%    = p95 MaxRSS / requested. Low means the request is oversized.
+suggest = p95 MaxRSS + 25% headroom, rounded up to whole GB.
+======================================================================================================================

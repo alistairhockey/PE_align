@@ -1,0 +1,11 @@
+label:        alignment
+captured:     2026-10-04T01:10:08Z
+sacct since:  2026-09-10
+host:         kaya01.hpc.uwa.edu.au
+user:         ahockey
+git commit:   645615e
+records:      4306 total, 2191 nextflow tasks
+traces kept:  7
+
+Combine snapshots later with:
+  bin/allocation_table.py --from-file /group/sae001/ahockey/Cr_align/stats/alignment//sacct-raw.psv 

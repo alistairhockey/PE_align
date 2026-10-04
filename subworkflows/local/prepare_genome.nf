@@ -26,6 +26,7 @@ workflow PREPARE_GENOME {
     chr_regex      // val
     min_length     // val
     skip_normalise // bool
+    build_bwa      // bool: false when entering from existing alignments
 
     main:
     ch_versions = Channel.empty()
@@ -75,12 +76,17 @@ workflow PREPARE_GENOME {
     }
 
     // ---- bwa index ----
+    // Skipped entirely on the --bam_input path: the reads are already aligned,
+    // so the index is never read, and building it costs ~8 minutes and 700 MB
+    // of index files for nothing.
     if (bwa_in) {
         ch_bwa = Channel.value(file(bwa_in, checkIfExists: true))
-    } else {
+    } else if (build_bwa) {
         BWA_INDEX(ch_fasta)
         ch_bwa      = BWA_INDEX.out.index.first()
         ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
+    } else {
+        ch_bwa = Channel.empty()
     }
 
     // ---- scatter intervals ----

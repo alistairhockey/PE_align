@@ -216,7 +216,8 @@ workflow {
         params.bwa_index,
         params.chr_regex,
         params.intervals_min_length,
-        params.skip_fasta_normalisation
+        params.skip_fasta_normalisation,
+        !params.bam_input          // no bwa index needed when resuming from BAMs
     )
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 

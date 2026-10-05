@@ -10,6 +10,13 @@
  * MergeVcfs is used rather than bcftools concat because it validates against
  * the sequence dictionary, so a shard from the wrong reference cannot be
  * silently concatenated in.
+ *
+ * NOTE ON BUILDING ARGUMENT LISTS
+ * Do not write  \${files.collect { "--INPUT " + it }.join(" ")}  in a script
+ * block. Groovy ends the interpolation at the closure's closing brace, so the
+ * remainder of the expression is emitted as literal text and reaches the tool
+ * as a stray positional argument. Build such strings in the script: section as
+ * a plain variable, or -- as here -- write a list file.
  */
 process GATK4_MERGEVCFS {
     tag        "${sample}"
@@ -31,8 +38,20 @@ process GATK4_MERGEVCFS {
     script:
     def avail = task.memory ? (task.memory.giga * 0.7).intValue() : 8
     """
+    set -euo pipefail
+
+    # Inputs are passed as a '.list' file, one path per line, rather than as
+    # repeated --INPUT arguments. A Groovy closure cannot be interpolated into
+    # a script block: the closure's closing brace terminates the interpolation
+    # early, and the tail of the expression leaks into the command as literal
+    # text, which GATK then rejects as an unexpected positional argument.
+    # A list file also sidesteps command-line length limits.
+    printf '%s\\n' ${gvcfs} > inputs.list
+    sort -o inputs.list inputs.list
+    echo "merging \$(wc -l < inputs.list) interval gVCFs for ${sample}"
+
     gatk --java-options "-Xmx${avail}g -XX:-UsePerfData" MergeVcfs \\
-        ${gvcfs.collect { "--INPUT ${it}" }.join(' \\\\\n        ')} \\
+        --INPUT inputs.list \\
         --SEQUENCE_DICTIONARY ${dict} \\
         --OUTPUT ${sample}.g.vcf.gz \\
         --CREATE_INDEX true \\

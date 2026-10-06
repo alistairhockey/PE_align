@@ -1,0 +1,39 @@
+======================================================================================================================
+CPU AND MEMORY USAGE BY PROCESS   (source: SLURM accounting)
+======================================================================================================================
+process                              n  cpu  cpu%   median      max   req mem   p95 RSS   max RSS  mem%   suggest
+----------------------------------------------------------------------------------------------------------------------
+ALIGN_READS_GATK4_MARKDUPLICATES     3    4   40%      41s     1.0m  128.0 GB   35.2 GB   35.2 GB   28%     45 GB
+CALL_VARIANTS_GATK4_GENOMICSDBIMP    8    8   13%    3.46h    4.76h  256.0 GB   58.1 GB   58.1 GB   23%     73 GB
+CALL_VARIANTS_GATK4_GENOTYPEGVCFS    1    8   12%    5.95h    5.95h  512.0 GB   52.1 GB   52.1 GB   10%     66 GB
+CALL_VARIANTS_GATK4_HAPLOTYPECALL 1288    4   66%    23.4m    2.18h   24.0 GB    3.6 GB    6.5 GB   15%      5 GB
+MULTIQC                              1    2   34%       8s       8s   16.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_BUILD_INTERVALS       1    2   12%       1s       1s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_BWA_INDEX             1    4   25%     8.4m     8.4m   16.0 GB    1.1 GB    1.1 GB    7%      2 GB
+PREPARE_GENOME_GATK4_CREATESEQUEN    1    2   71%       5s       5s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_NORMALISE_FASTA       1    2   59%      20s      20s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PREPARE_GENOME_SAMTOOLS_FAIDX        1    2   46%       2s       2s    8.0 GB    3.0 MB    3.0 MB    0%      1 GB
+PROCESS_BAMS_GATK4_MARKDUPLICATES  161    4   37%     2.8m    38.8m  128.0 GB   58.7 GB   79.1 GB   46%     74 GB
+PROCESS_BAMS_SAMTOOLS_MERGE         76    4   93%     1.2m    11.4m    8.0 GB   93.3 MB   95.6 MB    1%      1 GB
+PROCESS_BAMS_SAMTOOLS_STATS        161    2   59%     2.0m    22.6m    8.0 GB  103.4 MB  895.5 MB    1%      1 GB
+----------------------------------------------------------------------------------------------------------------------
+TOTAL                             1704                                                                     1,524h
+
+Total core-hours consumed : 1,524.3
+Total wall time in tasks  : 25.21d
+I/O                       : 5.6 TB read, 2.2 TB written
+
+NON-COMPLETED TASKS
+  ALIGN_READS_GATK4_MARKDUPLICATES             CANCELLED by 11022 14
+  ALIGN_READS_GATK4_MARKDUPLICATES             FAILED         7
+  ALIGN_READS_SAMTOOLS_MERGE                   FAILED         7
+  CALL_VARIANTS_GATK4_GENOTYPEGVCFS            CANCELLED by 11022 7
+  CALL_VARIANTS_GATK4_MERGEVCFS                CANCELLED by 11022 19
+  CALL_VARIANTS_GATK4_MERGEVCFS                FAILED         308
+  PROCESS_BAMS_GATK4_MARKDUPLICATES            CANCELLED by 11022 6
+  PROCESS_BAMS_SAMTOOLS_MERGE                  OUT_OF_MEMORY  13
+
+cpu%    = TotalCPU / (wall x allocated cores). Low means cores idle.
+mem%    = p95 MaxRSS / requested. Low means the request is oversized.
+suggest = p95 MaxRSS + 25% headroom, rounded up to whole GB.
+======================================================================================================================

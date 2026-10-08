@@ -33,7 +33,7 @@ STAGES = [
       "SAMTOOLS_INDEX", "SAMTOOLS_STATS", "NORMALISE_FASTA", "SAMTOOLS_FAIDX",
       "CREATESEQUENCEDICTIONARY", "BUILD_INTERVALS"]),
     ("Per-sample variant calling (scattered)",
-     ["HAPLOTYPECALLER"]),
+     ["HAPLOTYPECALLER", "MERGEVCFS"]),
     ("Joint genotyping and filtering",
      ["GENOMICSDBIMPORT", "GENOTYPEGVCFS", "BCFTOOLS_CONCAT",
       "VARIANTFILTRATION", "MULTIQC"]),

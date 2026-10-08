@@ -1,0 +1,11 @@
+label:        final_161
+captured:     2026-10-08T07:46:19Z
+sacct since:  2026-10-04
+host:         kaya01.hpc.uwa.edu.au
+user:         ahockey
+git commit:   0d4c724
+records:      4487 total, 2258 nextflow tasks
+traces kept:  6
+
+Combine snapshots later with:
+  bin/allocation_table.py --from-file /group/sae001/ahockey/Cr_align/stats/alignment//sacct-raw.psv --from-file /group/sae001/ahockey/Cr_align/stats/final_161//sacct-raw.psv --from-file /group/sae001/ahockey/Cr_align/stats/genotyping_161//sacct-raw.psv 

@@ -115,11 +115,14 @@ def build(rows, scale=1.0):
         cores = (sum(t["cpus"] * t["elapsed"] for t in ts) /
                  sum(t["elapsed"] for t in ts)) if wall else 1
         mean_wall = (wall / len(ts))
-        rss = [t["rss"] for t in ts if t["rss"] > 0]
-        mem = math.ceil(max(rss) * 1.25 / 2**30) if rss else None
+        rss  = [t["rss"] for t in ts if t["rss"] > 0]
+        peak = (max(rss) / 2**30) if rss else None
+        # Requested figure = observed peak + 25% headroom, rounded up.
+        mem  = math.ceil(max(rss) * 1.25 / 2**30) if rss else None
         retried = sum(1 for t in ts if t.get("attempts", 1) > 1)
         out.append(dict(stage=name, jobs=jobs, cores=cores,
                         wall=mean_wall,
+                        peak=peak,
                         mem=mem,
                         cpuh=jobs * cores * mean_wall,
                         retried=retried, ntasks=len(ts)))
@@ -135,30 +138,36 @@ def render(rows, markdown, scale, frm, to):
     tot_cpuh = sum(r["cpuh"] for r in rows if r.get("jobs"))
 
     if markdown:
-        L = ["| Stage | Jobs | Cores/job | Wall-time (h) | Memory (GB) | CPU h |",
-             "|---|--:|--:|--:|--:|--:|"]
+        L = ["| Stage | Jobs | Cores/job | Wall-time (h) | Peak RAM (GB) | "
+             "Memory (GB) | CPU h |",
+             "|---|--:|--:|--:|--:|--:|--:|"]
         for r in rows:
             if not r.get("jobs"):
-                L.append(f"| {r['stage']} | — | — | — | — | — |")
+                L.append(f"| {r['stage']} | — | — | — | — | — | — |")
             else:
                 L.append(f"| {r['stage']} | {r['jobs']:,.0f} | {r['cores']:.0f} | "
-                         f"{r['wall']:.2f} | {fmt(r['mem'],'d')} | {r['cpuh']:,.0f} |")
-        L.append(f"| **Total** | **{tot_jobs:,.0f}** | | | | **{tot_cpuh:,.0f}** |")
+                         f"{r['wall']:.2f} | {fmt(r['peak'],'.1f')} | "
+                         f"{fmt(r['mem'],'d')} | {r['cpuh']:,.0f} |")
+        L.append(f"| **Total** | **{tot_jobs:,.0f}** | | | | | **{tot_cpuh:,.0f}** |")
         return "\n".join(L)
 
     w = 44
     L = []
     hdr = (f"{'Stage':<{w}}{'Jobs':>8}{'Cores/job':>11}"
-           f"{'Wall-time (h)':>15}{'Memory (GB)':>13}{'CPU h':>10}")
+           f"{'Wall-time (h)':>15}{'Peak RAM (GB)':>15}"
+           f"{'Memory (GB)':>13}{'CPU h':>10}")
     L.append("=" * len(hdr)); L.append(hdr); L.append("-" * len(hdr))
     for r in rows:
         if not r.get("jobs"):
-            L.append(f"{r['stage']:<{w}}{'—':>8}{'—':>11}{'—':>15}{'—':>13}{'—':>10}")
+            L.append(f"{r['stage']:<{w}}{'—':>8}{'—':>11}{'—':>15}{'—':>15}"
+                     f"{'—':>13}{'—':>10}")
         else:
             L.append(f"{r['stage']:<{w}}{r['jobs']:>8,.0f}{r['cores']:>11.0f}"
-                     f"{r['wall']:>15.2f}{fmt(r['mem'],'d'):>13}{r['cpuh']:>10,.0f}")
+                     f"{r['wall']:>15.2f}{fmt(r['peak'],'.1f'):>15}"
+                     f"{fmt(r['mem'],'d'):>13}{r['cpuh']:>10,.0f}")
     L.append("-" * len(hdr))
-    L.append(f"{'Total':<{w}}{tot_jobs:>8,.0f}{'':>11}{'':>15}{'':>13}{tot_cpuh:>10,.0f}")
+    L.append(f"{'Total':<{w}}{tot_jobs:>8,.0f}{'':>11}{'':>15}{'':>15}"
+             f"{'':>13}{tot_cpuh:>10,.0f}")
     L.append("=" * len(hdr))
     if scale != 1.0:
         L.append(f"Scaled x{scale:.2f} from {frm} to {to} samples.")
@@ -203,16 +212,19 @@ def main():
     if args.format == "csv":
         import io, csv as _csv
         buf = io.StringIO(); w = _csv.writer(buf)
-        w.writerow(["Stage","Jobs","Cores/job","Wall-time (h)","Memory (GB)","CPU h"])
+        w.writerow(["Stage","Jobs","Cores/job","Wall-time (h)",
+                    "Peak RAM (GB)","Memory (GB)","CPU h"])
         for r in table:
             if not r.get("jobs"):
-                w.writerow([r["stage"], "", "", "", "", ""])
+                w.writerow([r["stage"], "", "", "", "", "", ""])
             else:
                 w.writerow([r["stage"], f"{r['jobs']:.0f}", f"{r['cores']:.0f}",
-                            f"{r['wall']:.2f}", r["mem"] if r["mem"] else "",
+                            f"{r['wall']:.2f}",
+                            f"{r['peak']:.1f}" if r["peak"] else "",
+                            r["mem"] if r["mem"] else "",
                             f"{r['cpuh']:.0f}"])
         w.writerow(["Total",
-                    f"{sum(r['jobs'] for r in table if r.get('jobs')):.0f}", "", "", "",
+                    f"{sum(r['jobs'] for r in table if r.get('jobs')):.0f}", "", "", "", "",
                     f"{sum(r['cpuh'] for r in table if r.get('jobs')):.0f}"])
         text = buf.getvalue().rstrip("\n")
     else:
